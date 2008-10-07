@@ -5,7 +5,7 @@
  *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Mykola Ostrovskyy <spambox03@mail.ru>
- * @version    2008-08-23
+ * @version    2008-09-14
  */
 
 if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../../../').'/');
@@ -20,6 +20,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
 
     var $block;
     var $columns;
+    var $align;
 
     /**
      * function constructor
@@ -36,7 +37,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         return array(
             'author' => 'Mykola Ostrovskyy',
             'email'  => 'spambox03@mail.ru',
-            'date'   => '2008-08-23',
+            'date'   => '2008-09-14',
             'name'   => 'Columns Plugin',
             'desc'   => 'Arrange information in multiple columns',
             'url'    => 'http://wiki.splitbrain.org/plugin:columns',
@@ -78,7 +79,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     function connectTo($mode) {
         $kwcolumns = $this->_getKwColumns();
         $this->Lexer->addEntryPattern('<' . $kwcolumns . '.*?>(?=.*?</' . $kwcolumns . '>)', $mode, 'plugin_columns');
-        $this->Lexer->addPattern('<' . $this->_getKwNewColumn() . '>', 'plugin_columns');
+        $this->Lexer->addPattern($this->_getKwNewColumn(), 'plugin_columns');
     }
 
     function postConnect() {
@@ -139,21 +140,25 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
                         $colWidth = array_pad($colWidth, $columns, '-');
                     }
 
+                    $column = 0;
+                    $this->align = array();
+
                     foreach($colWidth as $width) {
-                        $renderer->doc .= $this->_renderCol($width);
+                        $this->align[++$column] = $this->_getAlignment($width);
+                        $renderer->doc .= $this->_renderCol(trim($width, '*'));
                     }
 
-                    $renderer->doc .= '<tr>' . $this->_renderTd('first');
+                    $renderer->doc .= '<tr>' . $this->_renderTd($this->align[1], 'first');
                     break;
 
                 case DOKU_LEXER_MATCHED:
                     $html = '</td>';
 
                     if ($data[2] < $this->_getColumns($data[1])) {
-                        $html .= $this->_renderTd();
+                        $html .= $this->_renderTd($this->align[$data[2]]);
                     }
                     else {
-                        $html .= $this->_renderTd('last');
+                        $html .= $this->_renderTd($this->align[$data[2]], 'last');
                     }
 
                     if (strstr(substr($renderer->doc, -5), '<p>') !== false) {
@@ -197,6 +202,9 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         if ($keyword == '') {
             $keyword = $this->getLang('kwnewcol');
         }
+        if ($this->getConf('wrapnewcol') == 1) {
+            $keyword = '<' . $keyword . '>';
+        }
         return $keyword;
     }
 
@@ -207,6 +215,24 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
             $this->columns = p_get_metadata($ID, 'columns');
         }
         return $this->columns[$block];
+    }
+
+    function _getAlignment($width) {
+        preg_match('/^(\*?).*?(\*?)$/', $width, $match);
+        $align = $match[1] . '-' . $match[2];
+        switch ($align) {
+            case '-':
+                return '';
+
+            case '-*':
+                return 'left';
+
+            case '*-':
+                return 'right';
+
+            case '*-*':
+                return 'center';
+        }
     }
 
     function _renderTable($width) {
@@ -227,12 +253,16 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         }
     }
 
-    function _renderTd($class = '') {
+    function _renderTd($align, $class = '') {
         if ($class == '') {
-            return '<td>';
+            $html = '<td';
         }
         else {
-            return '<td class="'.$class.'">';
+            $html = '<td class="' . $class . '"';
         }
+        if ($align != '') {
+            $html .= ' style="text-align:' . $align . ';"';
+        }
+        return $html . '>';
     }
 }
