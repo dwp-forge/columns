@@ -5,7 +5,7 @@
  *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Mykola Ostrovskyy <spambox03@mail.ru>
- * @version    2008-09-14
+ * @version    2008-10-08
  */
 
 if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../../../').'/');
@@ -19,6 +19,9 @@ require_once(DOKU_PLUGIN.'syntax.php');
 class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
 
     var $block;
+    var $nextBlock;
+    var $nestingLevel;
+    var $nestedBlock;
     var $columns;
     var $align;
 
@@ -27,6 +30,9 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
      */
     function syntax_plugin_columns(){
         $this->block = 0;
+        $this->nextBlock = 0;
+        $this->nestingLevel = 0;
+        $this->nestedBlock = array(0);
         $this->columns = array();
     }
 
@@ -37,7 +43,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         return array(
             'author' => 'Mykola Ostrovskyy',
             'email'  => 'spambox03@mail.ru',
-            'date'   => '2008-09-14',
+            'date'   => '2008-10-08',
             'name'   => 'Columns Plugin',
             'desc'   => 'Arrange information in multiple columns',
             'url'    => 'http://wiki.splitbrain.org/plugin:columns',
@@ -47,12 +53,19 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      * What kind of syntax are we?
      */
-    function getType(){
+    function getType() {
         return 'container';
     }
 
-    function getPType(){
+    function getPType() {
         return 'block';
+    }
+
+    function accepts($mode) {
+        if ($mode == substr(get_class($this), 7)) {
+            return true;
+        }
+        return parent::accepts($mode);
     }
 
     /**
@@ -77,49 +90,31 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     }
 
     function connectTo($mode) {
-        $kwcolumns = $this->_getKwColumns();
-        $this->Lexer->addEntryPattern('<' . $kwcolumns . '.*?>(?=.*?</' . $kwcolumns . '>)', $mode, 'plugin_columns');
-        $this->Lexer->addPattern($this->_getKwNewColumn(), 'plugin_columns');
+        $columnsTag = $this->_getColumnsTagName();
+        $this->Lexer->addEntryPattern('<' . $columnsTag . '.*?>(?=.*?</' . $columnsTag . '>)', $mode, 'plugin_columns');
+        $this->Lexer->addPattern($this->_getNewColumnTag(), 'plugin_columns');
     }
 
     function postConnect() {
-        $this->Lexer->addExitPattern('</' . $this->_getKwColumns() . '>', 'plugin_columns');
+        $this->Lexer->addExitPattern('</' . $this->_getColumnsTagName() . '>', 'plugin_columns');
     }
 
     /**
      * Handle the match
      */
-    function handle($match, $state, $pos, &$handler)
-    {
+    function handle($match, $state, $pos, &$handler) {
         switch ($state) {
-            case DOKU_LEXER_ENTER :
-                $this->block++;
-                $this->columns[$this->block] = 1;
-                $width['table'] = '-';
-                $width['col'] = array();
+            case DOKU_LEXER_ENTER:
+                return $this->_handleEnter($match);
 
-                preg_match('/<' . $this->_getKwColumns() . '(.*?)>/', $match, $match);
+            case DOKU_LEXER_MATCHED:
+                return $this->_handleMatched();
 
-                if (array_key_exists(1, $match)) {
-                    $temp = preg_split('/\s+/', $match[1], -1, PREG_SPLIT_NO_EMPTY);
-
-                    if (count($temp) > 0) {
-                        $width['table'] = array_shift($temp);
-                        $width['col'] = $temp;
-                    }
-                }
-
-                return array($state, $this->block, $width);
-
-            case DOKU_LEXER_MATCHED :
-                $this->columns[$this->block]++;
-                return array($state, $this->block, $this->columns[$this->block]);
-
-            case DOKU_LEXER_UNMATCHED :
+            case DOKU_LEXER_UNMATCHED:
                 return array($state, $match);
 
-            case DOKU_LEXER_EXIT :
-                return array($state, $this->block, $this->columns[$this->block]);
+            case DOKU_LEXER_EXIT:
+                return $this->_handleExit();
         }
         return false;
     }
@@ -131,42 +126,11 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         if($mode == 'xhtml') {
             switch ($data[0]) {
                 case DOKU_LEXER_ENTER:
-                    $renderer->doc .= $this->_renderTable($data[2]['table']);
-
-                    $columns = $this->_getColumns($data[1]);
-                    $colWidth = $data[2]['col'];
-
-                    if (count($colWidth) < $columns) {
-                        $colWidth = array_pad($colWidth, $columns, '-');
-                    }
-
-                    $column = 0;
-                    $this->align = array();
-
-                    foreach($colWidth as $width) {
-                        $this->align[++$column] = $this->_getAlignment($width);
-                        $renderer->doc .= $this->_renderCol(trim($width, '*'));
-                    }
-
-                    $renderer->doc .= '<tr>' . $this->_renderTd($this->align[1], 'first');
+                    $this->_renderEnter($renderer, $data[1], $data[2]);
                     break;
 
                 case DOKU_LEXER_MATCHED:
-                    $html = '</td>';
-
-                    if ($data[2] < $this->_getColumns($data[1])) {
-                        $html .= $this->_renderTd($this->align[$data[2]]);
-                    }
-                    else {
-                        $html .= $this->_renderTd($this->align[$data[2]], 'last');
-                    }
-
-                    if (strstr(substr($renderer->doc, -5), '<p>') !== false) {
-                        $renderer->doc .= '</p>' . $html . '<p>';
-                    }
-                    else {
-                        $renderer->doc .= $html;
-                    }
+                    $this->_renderMatched($renderer, $data[1], $data[2]);
                     break;
 
                 case DOKU_LEXER_UNMATCHED:
@@ -178,7 +142,8 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
                     break;
             }
             return true;
-        } elseif ($mode == 'metadata') {
+        }
+        elseif ($mode == 'metadata') {
             switch ($data[0]) {
                 case DOKU_LEXER_EXIT:
                     $renderer->meta['columns'][$data[1]] = $data[2];
@@ -189,25 +154,117 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         return false;
     }
 
-    function _getKwColumns() {
-        $keyword = $this->getConf('kwcolumns');
-        if ($keyword == '') {
-            $keyword = $this->getLang('kwcolumns');
+    /**
+     */
+    function _handleEnter($match) {
+        $this->block = ++$this->nextBlock;
+        $this->nestedBlock[++$this->nestingLevel] = $this->block;
+        $this->columns[$this->block] = 1;
+
+        $width['table'] = '-';
+        $width['col'] = array();
+
+        preg_match('/<' . $this->_getColumnsTagName() . '(.*?)>/', $match, $match);
+
+        if (array_key_exists(1, $match)) {
+            $temp = preg_split('/\s+/', $match[1], -1, PREG_SPLIT_NO_EMPTY);
+
+            if (count($temp) > 0) {
+                $width['table'] = array_shift($temp);
+                $width['col'] = $temp;
+            }
         }
-        return $keyword;
+        return array(DOKU_LEXER_ENTER, $this->block, $width);
     }
 
-    function _getKwNewColumn() {
-        $keyword = $this->getConf('kwnewcol');
-        if ($keyword == '') {
-            $keyword = $this->getLang('kwnewcol');
+    /**
+     */
+    function _handleMatched() {
+        $this->columns[$this->block]++;
+        return array(DOKU_LEXER_MATCHED, $this->block, $this->columns[$this->block]);
+    }
+
+    /**
+     */
+    function _handleExit() {
+        $result = array(DOKU_LEXER_EXIT, $this->block, $this->columns[$this->block]);
+        $this->block = $this->nestedBlock[--$this->nestingLevel];
+        return $result;
+    }
+
+    /**
+     * Returns columns tag without the brackets
+     */
+    function _getColumnsTagName() {
+        $tag = $this->getConf('kwcolumns');
+        if ($tag == '') {
+            $tag = $this->getLang('kwcolumns');
+        }
+        return $tag;
+    }
+
+    /**
+     * Returns new column tag
+     */
+    function _getNewColumnTag() {
+        $tag = $this->getConf('kwnewcol');
+        if ($tag == '') {
+            $tag = $this->getLang('kwnewcol');
         }
         if ($this->getConf('wrapnewcol') == 1) {
-            $keyword = '<' . $keyword . '>';
+            $tag = '<' . $tag . '>';
         }
-        return $keyword;
+        return $tag;
     }
 
+    /**
+     * Renders table and col tags, starts the table with first column
+     */
+    function _renderEnter(&$renderer, $block, $width) {
+        $renderer->doc .= $this->_renderTable($width['table']);
+
+        $columns = $this->_getColumns($block);
+        $colWidth = $width['col'];
+
+        if (count($colWidth) < $columns) {
+            $colWidth = array_pad($colWidth, $columns, '-');
+        }
+
+        $column = 0;
+        $this->align = array();
+
+        foreach($colWidth as $width) {
+            $this->align[++$column] = $this->_getAlignment($width);
+            $renderer->doc .= $this->_renderCol(trim($width, '*'));
+        }
+
+        $renderer->doc .= '<tr>' . $this->_renderTd($this->align[1], 'first');
+    }
+
+    /**
+     */
+    function _renderMatched(&$renderer, $block, $column) {
+        $html = '</td>';
+
+        $class = '';
+        if ($column == $this->_getColumns($block)) {
+            $class = 'last';
+        }
+
+        $html .= $this->_renderTd($this->align[$column], $class);
+
+        /* HACK: remove extra paragrap tags around new column tags */
+        if (strstr(substr($renderer->doc, -5), '<p>') !== false) {
+            $renderer->doc .= '</p>' . $html . '<p>';
+        }
+        else {
+            $renderer->doc .= $html;
+        }
+    }
+
+    /**
+     * Returns number of columns in specified block
+     */
     function _getColumns($block) {
         if (empty($this->columns)) {
             global $ID;
@@ -217,6 +274,9 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         return $this->columns[$block];
     }
 
+    /**
+     * Returns column text alignment
+     */
     function _getAlignment($width) {
         preg_match('/^(\*?).*?(\*?)$/', $width, $match);
         $align = $match[1] . '-' . $match[2];
@@ -235,6 +295,8 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         }
     }
 
+    /**
+     */
     function _renderTable($width) {
         if ($width == '-') {
             return '<table class="columns-plugin">';
@@ -244,6 +306,8 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         }
     }
 
+    /**
+     */
     function _renderCol($width) {
         if ($width == '-') {
             return '<col>';
@@ -253,6 +317,8 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         }
     }
 
+    /**
+     */
     function _renderTd($align, $class = '') {
         if ($class == '') {
             $html = '<td';
