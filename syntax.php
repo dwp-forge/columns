@@ -5,7 +5,6 @@
  *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Mykola Ostrovskyy <spambox03@mail.ru>
- * @version    2008-10-08
  */
 
 if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../../../').'/');
@@ -18,6 +17,7 @@ require_once(DOKU_PLUGIN.'syntax.php');
  */
 class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
 
+    var $mode;
     var $block;
     var $nextBlock;
     var $nestingLevel;
@@ -26,9 +26,10 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     var $align;
 
     /**
-     * function constructor
+     * Constructor
      */
     function syntax_plugin_columns(){
+        $this->mode = substr(get_class($this), 7);
         $this->block = 0;
         $this->nextBlock = 0;
         $this->nestingLevel = 0;
@@ -37,13 +38,13 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     }
 
     /**
-     * return some info
+     * Return some info
      */
-    function getInfo(){
+    function getInfo() {
         return array(
             'author' => 'Mykola Ostrovskyy',
             'email'  => 'spambox03@mail.ru',
-            'date'   => '2008-10-08',
+            'date'   => '2008-11-17',
             'name'   => 'Columns Plugin',
             'desc'   => 'Arrange information in multiple columns',
             'url'    => 'http://wiki.splitbrain.org/plugin:columns',
@@ -61,8 +62,12 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         return 'block';
     }
 
+    /**
+     * What modes are allowed within our mode?
+     */
     function accepts($mode) {
-        if ($mode == substr(get_class($this), 7)) {
+        /* Ensure that our own mode can be nested */
+        if ($mode == $this->mode) {
             return true;
         }
         return parent::accepts($mode);
@@ -91,12 +96,12 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
 
     function connectTo($mode) {
         $columnsTag = $this->_getColumnsTagName();
-        $this->Lexer->addEntryPattern('<' . $columnsTag . '.*?>(?=.*?</' . $columnsTag . '>)', $mode, 'plugin_columns');
-        $this->Lexer->addPattern($this->_getNewColumnTag(), 'plugin_columns');
+        $this->Lexer->addEntryPattern('<' . $columnsTag . '.*?>(?=.*?</' . $columnsTag . '>)', $mode, $this->mode);
+        $this->Lexer->addPattern($this->_getNewColumnTag(), $this->mode);
     }
 
     function postConnect() {
-        $this->Lexer->addExitPattern('</' . $this->_getColumnsTagName() . '>', 'plugin_columns');
+        $this->Lexer->addExitPattern('</' . $this->_getColumnsTagName() . '>', $this->mode);
     }
 
     /**
@@ -123,7 +128,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
      * Create output
      */
     function render($mode, &$renderer, $data) {
-        if($mode == 'xhtml') {
+        if ($mode == 'xhtml') {
             switch ($data[0]) {
                 case DOKU_LEXER_ENTER:
                     $this->_renderEnter($renderer, $data[1], $data[2]);
