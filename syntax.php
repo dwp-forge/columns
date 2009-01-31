@@ -1,20 +1,19 @@
 <?php
+
 /**
- * Columns Plugin: Arrange information in mulitple columns
- *                 Based on plugin by Michael Arlt <michael.arlt [at] sk-schwanstetten [dot] de>
+ * Columns Plugin
  *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Mykola Ostrovskyy <spambox03@mail.ru>
+ *             Based on plugin by Michael Arlt <michael.arlt [at] sk-schwanstetten [dot] de>
  */
 
-if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../../../').'/');
-if(!defined('DOKU_PLUGIN')) define('DOKU_PLUGIN',DOKU_INC.'lib/plugins/');
-require_once(DOKU_PLUGIN.'syntax.php');
+/* Must be run within Dokuwiki */
+if(!defined('DOKU_INC')) die();
 
-/**
- * All DokuWiki plugins to extend the parser/rendering mechanism
- * need to inherit from this class
- */
+if(!defined('DOKU_PLUGIN')) define('DOKU_PLUGIN', DOKU_INC . 'lib/plugins/');
+require_once(DOKU_PLUGIN . 'syntax.php');
+
 class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
 
     var $mode;
@@ -28,7 +27,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      * Constructor
      */
-    function syntax_plugin_columns(){
+    function syntax_plugin_columns() {
         $this->mode = substr(get_class($this), 7);
         $this->block = 0;
         $this->nextBlock = 0;
@@ -238,7 +237,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         $column = 0;
         $this->align = array();
 
-        foreach($colWidth as $width) {
+        foreach ($colWidth as $width) {
             $this->align[++$column] = $this->_getAlignment($width);
             $renderer->doc .= $this->_renderCol(trim($width, '*'));
         }
