@@ -324,14 +324,17 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      */
     function _renderTd($align, $class = '') {
+        if ($align != '') {
+            if ($class != '') {
+                $class .= ' ';
+            }
+            $class .= $align;
+        }
         if ($class == '') {
             $html = '<td';
         }
         else {
             $html = '<td class="' . $class . '"';
-        }
-        if ($align != '') {
-            $html .= ' style="text-align:' . $align . ';"';
         }
         return $html . '>';
     }
