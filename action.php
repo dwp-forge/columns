@@ -100,15 +100,65 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
         for ($c = 0; $c < $columns; $c++) {
             $call =& $event->data->calls[$column[$c]];
             if ($c == 0) {
-                //TODO: load attribs
-                //TODO: set class = first
-                //TODO: set table width
+                $attribute = $this->_loadTableAttributes($call[1][1][1]);
+                $attribute[$c]['class'] = 'first';
             }
-            //TODO: load attribs (override)
-            //TODO: set column attribs
-            if ($c == ($count - 1)) {
-                //TODO: set class = last
+            else {
+                //TODO: load attribs (override)
+                if ($c == ($columns - 1)) {
+                    $attribute[$c]['class'] = 'last';
+                }
             }
+            if (array_key_exists($c, $attribute)) {
+                $call[1][1][1] = $attribute[$c];
+            }
+            else {
+                $call[1][1][1] = array();
+            }
+        }
+    }
+
+    /**
+     * Convert raw attributes and layout information into column attributes
+     */
+    function _loadTableAttributes($attribute) {
+        $result = array();
+        $column = -1;
+        foreach ($attribute as $a) {
+            if (preg_match('/^(\*?)((?:-|(?:\d+\.?|\d*\.\d+)(?:%|em|px)))(\*?)$/', $a, $match) == 1) {
+                if ($column == -1) {
+                    if ($match[2] != '-') {
+                        $result[0]['table-width'] = $match[2];
+                    }
+                }
+                else {
+                    if ($match[2] != '-') {
+                        $result[$column]['column-width'] = $match[2];
+                    }
+                    $align = $match[1] . '-' . $match[3];
+                    if ($align != '-') {
+                        $result[$column]['text-align'] = $this->_getAlignment($align);
+                    }
+                }
+                $column++;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * Returns column text alignment
+     */
+    function _getAlignment($align) {
+        switch ($align) {
+            case '-*':
+                return 'left';
+
+            case '*-':
+                return 'right';
+
+            case '*-*':
+                return 'center';
         }
     }
 }
