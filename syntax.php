@@ -41,9 +41,9 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         $exit = '<\/' . $columns . '>';
         $lookAhead = '(?=.*?' . $exit . ')';
 
-        $this->lexerSyntax['enter'] = $enterLexer . '\n?' . $lookAhead;
-        $this->lexerSyntax['newcol'] = '\n?' . $newColumnLexer . '\n?' . $lookAhead;
-        $this->lexerSyntax['exit'] = '\n?' . $exit;
+        $this->lexerSyntax['enter'] = '\n' . $enterLexer . $lookAhead;
+        $this->lexerSyntax['newcol'] = '\n' . $newColumnLexer . $lookAhead;
+        $this->lexerSyntax['exit'] = '\n' . $exit;
 
         $this->syntax[DOKU_LEXER_ENTER] = '/' . $enterHandler . '/';
         $this->syntax[DOKU_LEXER_MATCHED] = '/' . $newColumnHandler . '/';
@@ -115,15 +115,16 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         if ($mode == 'xhtml') {
             switch ($data[0]) {
                 case DOKU_LEXER_ENTER:
-                    $this->_renderEnter($renderer, $data[1]);
+                    $renderer->doc .= $this->_renderTable($data[1]) . DOKU_LF;
+                    $renderer->doc .= '<tr>' . $this->_renderTd($data[1]) . DOKU_LF;
                     break;
 
                 case DOKU_LEXER_MATCHED:
-                    $this->_renderMatched($renderer, $data[1]);
+                    $renderer->doc .= '</td>' . $this->_renderTd($data[1]) . DOKU_LF;
                     break;
 
                 case DOKU_LEXER_EXIT:
-                    $renderer->doc .= '<!-- /columns -->';
+                    $renderer->doc .= '</td></tr></table>' . DOKU_LF;
                     break;
             }
             return true;
@@ -154,40 +155,25 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     }
 
     /**
-     * Renders table and col tags, starts the table with first column
+     *
      */
-    function _renderEnter(&$renderer, $attribute) {
-        $renderer->doc .= '<!-- columns';
-        foreach($attribute as $a) {
-            $renderer->doc .= ' ' . $a;
-        }
-        $renderer->doc .= ' -->';
-    }
-
-    /**
-     */
-    function _renderMatched(&$renderer, $attribute) {
-        $renderer->doc .= '<!-- newcolumn';
-        foreach($attribute as $a) {
-            $renderer->doc .= ' ' . $a;
-        }
-        $renderer->doc .= ' -->';
-    }
-
-    /**
-     */
-    function _renderTable($width) {
-        if ($width == '-') {
-            return '<table class="columns-plugin">';
-        }
-        else {
+    function _renderTable($attribute) {
+        $width = $this->_getAttribute($attribute, 'table-width');
+        if ($width != '') {
             return '<table class="columns-plugin" style="width:' . $width . '">';
         }
+        else {
+            return '<table class="columns-plugin">';
+        }
     }
 
     /**
+     *
      */
-    function _renderTd($align, $class = '') {
+    function _renderTd($attribute) {
+        $class = $this->_getAttribute($attribute, 'class');
+        $align = $this->_getAttribute($attribute, 'text-align');
+        $width = $this->_getAttribute($attribute, 'column-width');
         if ($align != '') {
             if ($class != '') {
                 $class .= ' ';
@@ -200,6 +186,20 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         else {
             $html = '<td class="' . $class . '"';
         }
+        if ($width != '') {
+            $html .= ' style="width:' . $width . '"';
+        }
         return $html . '>';
+    }
+
+    /**
+     *
+     */
+    function _getAttribute($attribute, $name) {
+        $result = '';
+        if (array_key_exists($name, $attribute)) {
+            $result = $attribute[$name];
+        }
+        return $result;
     }
 }
