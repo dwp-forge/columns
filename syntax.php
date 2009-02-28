@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Columns Plugin
+ * Plugin Columns
  *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Mykola Ostrovskyy <spambox03@mail.ru>
@@ -17,12 +17,8 @@ require_once(DOKU_PLUGIN . 'syntax.php');
 class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
 
     var $mode;
-    var $block;
-    var $nextBlock;
-    var $nestingLevel;
-    var $nestedBlock;
-    var $columns;
-    var $align;
+    var $lexerSyntax;
+    var $syntax;
 
     /**
      * Constructor
@@ -52,12 +48,6 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         $this->syntax[DOKU_LEXER_ENTER] = '/' . $enterHandler . '/';
         $this->syntax[DOKU_LEXER_MATCHED] = '/' . $newColumnHandler . '/';
         $this->syntax[DOKU_LEXER_EXIT] = '/' . $exit . '/';
-
-        $this->block = 0;
-        $this->nextBlock = 0;
-        $this->nestingLevel = 0;
-        $this->nestedBlock = array(0);
-        $this->columns = array();
     }
 
     /**
@@ -67,9 +57,9 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         return array(
             'author' => 'Mykola Ostrovskyy',
             'email'  => 'spambox03@mail.ru',
-            'date'   => '2009-01-31',
+            'date'   => '2009-02-28',
             'name'   => 'Columns Plugin',
-            'desc'   => 'Arrange information in multiple columns',
+            'desc'   => 'Arrange information in multiple columns.',
             'url'    => 'http://wiki.splitbrain.org/plugin:columns',
         );
     }
