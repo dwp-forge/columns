@@ -51,8 +51,14 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
     function handle(&$event, $param) {
         $style = $this->_buildLayout($event);
         if (count($this->block) > 0) {
+            $change = array();
             foreach ($this->block as $block) {
                 $block->processAttributes($event);
+                $change = array_merge($change, $block->getCallChanges($event));
+            }
+            if (count($change) > 0) {
+                $change = $this->_sortChanges($change);
+                $this->_applyChanges($event, $change);
             }
         }
     }
@@ -65,6 +71,9 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
         $currentBlock = NULL;
         for ($c = 0; $c < $calls; $c++) {
             $call =& $event->data->calls[$c];
+            if (($call[0] == 'section_close') && ($currentBlock != NULL)) {
+                $currentBlock->closeSection($c);
+            }
             if (($call[0] == 'plugin') && ($call[1][0] == 'columns')) {
                 switch ($call[1][1][0]) {
                     case DOKU_LEXER_ENTER:
@@ -78,11 +87,53 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
                         break;
 
                     case DOKU_LEXER_EXIT:
+                        $currentBlock->close($c);
                         $currentBlock = $currentBlock->getParent();
                         break;
                 }
             }
         }
+    }
+
+    /**
+     *
+     */
+    function _sortChanges($change) {
+        $result = array();
+        foreach ($change as $ch) {
+            $result[$ch['index']] = $ch;
+        }
+        ksort($result);
+        return array_values($result);
+    }
+
+    /**
+     *
+     */
+    function _applyChanges(&$event, $change) {
+        $calls = count($event->data->calls);
+        $changes = count($change);
+        $call = array();
+        for ($c = 0, $ch = 0; $c < $calls; $c++) {
+            if (($ch < $changes) && ($change[$ch]['index'] == $c)) {
+                switch ($change[$ch]['command']) {
+                    case 'delete':
+                        break;
+
+                    case 'insert':
+                        foreach ($change[$ch]['call'] as $cl) {
+                            $call[] = $cl;
+                        }
+                        $call[] = $event->data->calls[$c];
+                        break;
+                }
+                $ch++;
+            }
+            else {
+                $call[] = $event->data->calls[$c];
+            }
+        }
+        $event->data->calls = $call;
     }
 }
 
@@ -90,6 +141,8 @@ class columns_block {
 
     var $parent;
     var $column;
+    var $closeSection;
+    var $end;
 
     /**
      * Constructor
@@ -97,6 +150,8 @@ class columns_block {
     function columns_block($parent) {
         $this->parent = $parent;
         $this->column = array();
+        $this->closeSection = array();
+        $this->end = -1;
     }
 
     /**
@@ -111,6 +166,24 @@ class columns_block {
      */
     function addColumn($callIndex) {
         $this->column[] = $callIndex;
+        $this->closeSection[] = -1;
+    }
+
+    /**
+     *
+     */
+    function closeSection($callIndex) {
+        $column = count($this->column) - 1;
+        if ($this->closeSection[$column] == -1) {
+            $this->closeSection[$column] = $callIndex;
+        }
+    }
+
+    /**
+     *
+     */
+    function close($callIndex) {
+        $this->end = $callIndex;
     }
 
     /**
@@ -181,5 +254,41 @@ class columns_block {
             case '*-*':
                 return 'center';
         }
+    }
+
+    /**
+     * Returns a list of changes that have to be applied to the instruction array
+     */
+    function getCallChanges(&$event) {
+        $columns = count($this->column);
+        $change = array();
+        for ($c = 0; $c < $columns; $c++) {
+            if ($this->closeSection[$c] != -1) {
+                $change[] = $this->_buildChange($this->closeSection[$c], 'delete');
+                if ($c < ($columns - 1)) {
+                    $insert = $this->column[$c + 1];
+                }
+                else {
+                    $insert = $this->end;
+                }
+                $call = array();
+                $call[] = array('section_close', array(), $event->data->calls[$insert][2]);
+                //TODO: Do something about section_edit?
+                $change[] = $this->_buildChange($insert, 'insert', $call);
+            }
+        }
+        return $change;
+    }
+
+    /**
+     *
+     */
+    function _buildChange($index, $command, $call = NULL) {
+        $change['index'] = $index;
+        $change['command'] = $command;
+        if ($command == 'insert') {
+            $change['call'] = $call;
+        }
+        return $change;
     }
 }
