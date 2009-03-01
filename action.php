@@ -16,20 +16,12 @@ require_once(DOKU_PLUGIN . 'action.php');
 class action_plugin_columns extends DokuWiki_Action_Plugin {
 
     var $block;
-    var $blocks;
-    var $nestingLevel;
-    var $nestedBlock;
-    var $column;
 
     /**
      * Constructor
      */
     function action_plugin_columns() {
-        $this->block = 0;
-        $this->blocks = 0;
-        $this->nestingLevel = 0;
-        $this->nestedBlock = array(0);
-        $this->column = array();
+        $this->block = array();
     }
 
     /**
@@ -58,9 +50,9 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
      */
     function handle(&$event, $param) {
         $style = $this->_buildLayout($event);
-        if ($this->blocks > 0) {
-            foreach ($this->column as $column) {
-                $this->_processBlock($event, $column);
+        if (count($this->block) > 0) {
+            foreach ($this->block as $block) {
+                $block->processAttributes($event);
             }
         }
     }
@@ -69,36 +61,65 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
      * Find all columns instructions and construct columns layout based on them
      */
     function _buildLayout(&$event) {
-        $instructions = count($event->data->calls);
-        for ($i = 0; $i < $instructions; $i++) {
-            $call =& $event->data->calls[$i];
+        $calls = count($event->data->calls);
+        $currentBlock = NULL;
+        for ($c = 0; $c < $calls; $c++) {
+            $call =& $event->data->calls[$c];
             if (($call[0] == 'plugin') && ($call[1][0] == 'columns')) {
                 switch ($call[1][1][0]) {
                     case DOKU_LEXER_ENTER:
-                        $this->block = ++$this->blocks;
-                        $this->nestedBlock[++$this->nestingLevel] = $this->block;
-                        $this->column[$this->block][] = $i;
+                        $currentBlock = new columns_block($currentBlock);
+                        $currentBlock->addColumn($c);
+                        $this->block[] = $currentBlock;
                         break;
 
                     case DOKU_LEXER_MATCHED:
-                        $this->column[$this->block][] = $i;
+                        $currentBlock->addColumn($c);
                         break;
 
                     case DOKU_LEXER_EXIT:
-                        $this->block = $this->nestedBlock[--$this->nestingLevel];
+                        $currentBlock = $currentBlock->getParent();
                         break;
                 }
             }
         }
     }
+}
+
+class columns_block {
+
+    var $parent;
+    var $column;
+
+    /**
+     * Constructor
+     */
+    function columns_block($parent) {
+        $this->parent = $parent;
+        $this->column = array();
+    }
+
+    /**
+     *
+     */
+    function getParent() {
+        return $this->parent;
+    }
+
+    /**
+     *
+     */
+    function addColumn($callIndex) {
+        $this->column[] = $callIndex;
+    }
 
     /**
      * Convert raw attributes and layout information into column attributes
      */
-    function _processBlock(&$event, $column) {
-        $columns = count($column);
+    function processAttributes(&$event) {
+        $columns = count($this->column);
         for ($c = 0; $c < $columns; $c++) {
-            $call =& $event->data->calls[$column[$c]];
+            $call =& $event->data->calls[$this->column[$c]];
             if ($c == 0) {
                 $attribute = $this->_loadTableAttributes($call[1][1][1]);
                 $attribute[$c]['class'] = 'first';
