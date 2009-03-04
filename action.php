@@ -241,18 +241,87 @@ class columns_block {
     }
 
     /**
+     *
+     */
+    function _parseAttribute($attribute) {
+        static $syntax = array(
+            '/^left|right|center|justify$/' => 'text-align',
+            '/^top|middle|bottom$/' => 'vertical-align',
+            '/^[lrcjtmb]{2}$/' => 'align',
+            '/^(\*?)((?:-|(?:\d+\.?|\d*\.\d+)(?:%|em|px)))(\*?)$/' => 'width'
+        );
+        $result = array();
+        $attributeName = '';
+        foreach ($syntax as $pattern => $name) {
+            if (preg_match($pattern, $attribute, $match) == 1) {
+                $attributeName = $name;
+                break;
+            }
+        }
+        switch ($attributeName) {
+            case 'text-align':
+            case 'vertical-align':
+                $result[$attributeName] = $match[0];
+                break;
+
+            case 'align':
+                $result = $this->_parseAlignAttribute($match);
+                break;
+
+            case 'width':
+                $result = $this->_parseWidthAttribute($match);
+                break;
+        }
+        return $result;
+    }
+
+    /**
+     *
+     */
+    function _parseAlignAttribute($syntax) {
+        $result = array();
+        $align1 = preg_match('/lrcj/', $syntax{0}) ? 'text-align' : 'vertical-align';
+        $align2 = preg_match('/lrcj/', $syntax{1}) ? 'text-align' : 'vertical-align';
+        if ($align1 != $align2) {
+            $result[$align1] = $this->_getAlignment($syntax{0});
+            $result[$align2] = $this->_getAlignment($syntax{1});
+        }
+        return $result;
+    }
+
+    /**
+     *
+     */
+    function _parseWidthAttribute($syntax) {
+        $result = array();
+        if ($syntax[2] != '-') {
+            $result['width'] = $syntax[2];
+        }
+        $align = $syntax[1] . '-' . $syntax[3];
+        if ($align != '-') {
+            $result['text-align'] = $this->_getAlignment($align);
+        }
+        return $result;
+    }
+
+    /**
      * Returns column text alignment
      */
-    function _getAlignment($align) {
-        switch ($align) {
-            case '-*':
-                return 'left';
-
-            case '*-':
-                return 'right';
-
-            case '*-*':
-                return 'center';
+    function _getAlignment($syntax) {
+        static $align = array(
+            'l' => 'left', '-*' => 'left',
+            'r' => 'right', '*-' => 'right',
+            'c' => 'center', '*-*' => 'center',
+            'j' => 'justify',
+            't' => 'top',
+            'm' => 'middle',
+            'b' => 'bottom'
+        );
+        if (array_key_exists($syntax, $align)) {
+            return $align[$syntax];
+        }
+        else {
+            return '';
         }
     }
 
