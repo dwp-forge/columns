@@ -198,44 +198,46 @@ class columns_block {
                 $attribute[$c]['class'] = 'first';
             }
             else {
-                //TODO: load attribs (override)
+                $attribute[$c] = array_merge($attribute[$c], $this->_loadColumnAttributes($call[1][1][1]));
                 if ($c == ($columns - 1)) {
                     $attribute[$c]['class'] = 'last';
                 }
             }
-            if (array_key_exists($c, $attribute)) {
-                $call[1][1][1] = $attribute[$c];
-            }
-            else {
-                $call[1][1][1] = array();
-            }
+            $call[1][1][1] = $attribute[$c];
         }
     }
 
     /**
-     * Convert raw attributes and layout information into column attributes
+     * Convert raw attributes into column attributes
      */
     function _loadTableAttributes($attribute) {
         $result = array();
         $column = -1;
+        $nextColumn = -1;
         foreach ($attribute as $a) {
-            if (preg_match('/^(\*?)((?:-|(?:\d+\.?|\d*\.\d+)(?:%|em|px)))(\*?)$/', $a, $match) == 1) {
-                if ($column == -1) {
-                    if ($match[2] != '-') {
-                        $result[0]['table-width'] = $match[2];
-                    }
+            list($name, $temp) = $this->_parseAttribute($a);
+            if ($name == 'width') {
+                if (($column == -1) && array_key_exists('column-width', $temp)) {
+                    $result[0]['table-width'] = $temp['column-width'];
                 }
-                else {
-                    if ($match[2] != '-') {
-                        $result[$column]['column-width'] = $match[2];
-                    }
-                    $align = $match[1] . '-' . $match[3];
-                    if ($align != '-') {
-                        $result[$column]['text-align'] = $this->_getAlignment($align);
-                    }
-                }
-                $column++;
+                $nextColumn = $column + 1;
             }
+            if ($column >= 0) {
+                $result[$column] = array_merge($result[$column], $temp);
+            }
+            $column = $nextColumn;
+        }
+        return $result;
+    }
+
+    /**
+     * Convert raw attributes into column attributes
+     */
+    function _loadColumnAttributes($attribute) {
+        $result = array();
+        foreach ($attribute as $a) {
+            list($name, $temp) = $this->_parseAttribute($a);
+            $result = array_merge($result, $temp);
         }
         return $result;
     }
@@ -272,7 +274,7 @@ class columns_block {
                 $result = $this->_parseWidthAttribute($match);
                 break;
         }
-        return $result;
+        return array($attributeName, $result);
     }
 
     /**
@@ -295,7 +297,7 @@ class columns_block {
     function _parseWidthAttribute($syntax) {
         $result = array();
         if ($syntax[2] != '-') {
-            $result['width'] = $syntax[2];
+            $result['column-width'] = $syntax[2];
         }
         $align = $syntax[1] . '-' . $syntax[3];
         if ($align != '-') {
