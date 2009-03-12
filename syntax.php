@@ -172,13 +172,12 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
      */
     function _renderTd($attribute) {
         $class = $this->_getAttribute($attribute, 'class');
-        $align = $this->_getAttribute($attribute, 'text-align');
-        $width = $this->_getAttribute($attribute, 'column-width');
-        if ($align != '') {
+        $textAlign = $this->_getAttribute($attribute, 'text-align');
+        if ($textAlign != '') {
             if ($class != '') {
                 $class .= ' ';
             }
-            $class .= $align;
+            $class .= $textAlign;
         }
         if ($class == '') {
             $html = '<td';
@@ -186,10 +185,26 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         else {
             $html = '<td class="' . $class . '"';
         }
-        if ($width != '') {
-            $html .= ' style="width:' . $width . '"';
+        $style = $this->_getStyle($attribute, 'column-width', 'width');
+        $style .= $this->_getStyle($attribute, 'vertical-align');
+        if ($style != '') {
+            $html .= ' style="' . $style . '"';
         }
         return $html . '>';
+    }
+
+    /**
+     *
+     */
+    function _getStyle($attribute, $attributeName, $styleName = '') {
+        $result = $this->_getAttribute($attribute, $attributeName);
+        if ($result != '') {
+            if ($styleName == '') {
+                $styleName = $attributeName;
+            }
+            $result .= $styleName . ':' . $result . ';';
+        }
+        return $result;
     }
 
     /**
