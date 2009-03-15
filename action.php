@@ -141,6 +141,7 @@ class columns_block {
 
     var $parent;
     var $column;
+    var $attribute;
     var $closeSection;
     var $end;
 
@@ -150,6 +151,7 @@ class columns_block {
     function columns_block($parent) {
         $this->parent = $parent;
         $this->column = array();
+        $this->attribute = array();
         $this->closeSection = array();
         $this->end = -1;
     }
@@ -166,6 +168,7 @@ class columns_block {
      */
     function addColumn($callIndex) {
         $this->column[] = $callIndex;
+        $this->attribute[] = new columns_attributes_bag();
         $this->closeSection[] = -1;
     }
 
@@ -194,22 +197,16 @@ class columns_block {
         for ($c = 0; $c < $columns; $c++) {
             $call =& $event->data->calls[$this->column[$c]];
             if ($c == 0) {
-                $attribute = $this->_loadTableAttributes($call[1][1][1]);
-                $attribute[$c]['class'] = 'first';
+                $this->_loadTableAttributes($call[1][1][1]);
+                $this->attribute[0]->addAttribute('class', 'first');
             }
             else {
-                $temp = $this->_loadColumnAttributes($call[1][1][1]);
-                if (array_key_exists($c, $attribute)) {
-                    $attribute[$c] = array_merge($attribute[$c], $temp);
-                }
-                else {
-                    $attribute[$c] = $temp;
-                }
+                $this->_loadColumnAttributes($c, $call[1][1][1]);
                 if ($c == ($columns - 1)) {
-                    $attribute[$c]['class'] = 'last';
+                    $this->attribute[$c]->addAttribute('class', 'last');
                 }
             }
-            $call[1][1][1] = $attribute[$c];
+            $call[1][1][1] = $this->attribute[$c]->getAttributes();
         }
     }
 
@@ -217,35 +214,31 @@ class columns_block {
      * Convert raw attributes into column attributes
      */
     function _loadTableAttributes($attribute) {
-        $result = array();
         $column = -1;
         $nextColumn = -1;
         foreach ($attribute as $a) {
             list($name, $temp) = $this->_parseAttribute($a);
             if ($name == 'width') {
                 if (($column == -1) && array_key_exists('column-width', $temp)) {
-                    $result[0]['table-width'] = $temp['column-width'];
+                    $this->attribute[0]->addAttribute('table-width', $temp['column-width']);
                 }
                 $nextColumn = $column + 1;
             }
             if ($column >= 0) {
-                $result[$column] = array_merge($result[$column], $temp);
+                $this->attribute[$column]->addAttributes($temp);
             }
             $column = $nextColumn;
         }
-        return $result;
     }
 
     /**
      * Convert raw attributes into column attributes
      */
-    function _loadColumnAttributes($attribute) {
-        $result = array();
+    function _loadColumnAttributes($column, $attribute) {
         foreach ($attribute as $a) {
             list($name, $temp) = $this->_parseAttribute($a);
-            $result = array_merge($result, $temp);
+            $this->attribute[$column]->addAttributes($temp);
         }
-        return $result;
     }
 
     /**
@@ -379,5 +372,40 @@ class columns_block {
             $change['call'] = $call;
         }
         return $change;
+    }
+}
+
+class columns_attributes_bag {
+
+    var $attribute;
+
+    /**
+     * Constructor
+     */
+    function columns_attributes_bag() {
+        $this->attribute = array();
+    }
+
+    /**
+     *
+     */
+    function addAttribute($name, $value) {
+        $this->attribute[$name] = $value;
+    }
+
+    /**
+     *
+     */
+    function addAttributes($attribute) {
+        if (is_array($attribute) && (count($attribute) > 0)) {
+            $this->attribute = array_merge($this->attribute, $attribute);
+        }
+    }
+
+    /**
+     *
+     */
+    function getAttributes() {
+        return $this->attribute;
     }
 }
