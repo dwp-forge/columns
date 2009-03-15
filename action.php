@@ -198,7 +198,13 @@ class columns_block {
                 $attribute[$c]['class'] = 'first';
             }
             else {
-                $attribute[$c] = array_merge($attribute[$c], $this->_loadColumnAttributes($call[1][1][1]));
+                $temp = $this->_loadColumnAttributes($call[1][1][1]);
+                if (array_key_exists($c, $attribute)) {
+                    $attribute[$c] = array_merge($attribute[$c], $temp);
+                }
+                else {
+                    $attribute[$c] = $temp;
+                }
                 if ($c == ($columns - 1)) {
                     $attribute[$c]['class'] = 'last';
                 }
@@ -249,7 +255,7 @@ class columns_block {
         static $syntax = array(
             '/^left|right|center|justify$/' => 'text-align',
             '/^top|middle|bottom$/' => 'vertical-align',
-            '/^[lrcjtmb]{2}$/' => 'align',
+            '/^[lrcjtmb]{1,2}$/' => 'align',
             '/^(\*?)((?:-|(?:\d+\.?|\d*\.\d+)(?:%|em|px)))(\*?)$/' => 'width'
         );
         $result = array();
@@ -267,7 +273,7 @@ class columns_block {
                 break;
 
             case 'align':
-                $result = $this->_parseAlignAttribute($match);
+                $result = $this->_parseAlignAttribute($match[0]);
                 break;
 
             case 'width':
@@ -282,13 +288,25 @@ class columns_block {
      */
     function _parseAlignAttribute($syntax) {
         $result = array();
-        $align1 = preg_match('/lrcj/', $syntax{0}) ? 'text-align' : 'vertical-align';
-        $align2 = preg_match('/lrcj/', $syntax{1}) ? 'text-align' : 'vertical-align';
-        if ($align1 != $align2) {
+        $align1 = $this->_getAlignStyle($syntax{0});
+        if (strlen($syntax) == 2) {
+            $align2 = $this->_getAlignStyle($syntax{1});
+            if ($align1 != $align2) {
+                $result[$align1] = $this->_getAlignment($syntax{0});
+                $result[$align2] = $this->_getAlignment($syntax{1});
+            }
+        }
+        else{
             $result[$align1] = $this->_getAlignment($syntax{0});
-            $result[$align2] = $this->_getAlignment($syntax{1});
         }
         return $result;
+    }
+
+    /**
+     *
+     */
+    function _getAlignStyle($align) {
+        return preg_match('/[lrcj]/', $align) ? 'text-align' : 'vertical-align';
     }
 
     /**
