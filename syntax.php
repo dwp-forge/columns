@@ -60,7 +60,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
             'date'   => '2009-03-01',
             'name'   => 'Columns Plugin',
             'desc'   => 'Arrange information in multiple columns.',
-            'url'    => 'http://wiki.splitbrain.org/plugin:columns',
+            'url'    => 'http://wiki.splitbrain.org/plugin:columns'
         );
     }
 
@@ -202,7 +202,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
             if ($styleName == '') {
                 $styleName = $attributeName;
             }
-            $result .= $styleName . ':' . $result . ';';
+            $result = $styleName . ':' . $result . ';';
         }
         return $result;
     }
