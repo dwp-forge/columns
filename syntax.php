@@ -57,7 +57,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         return array(
             'author' => 'Mykola Ostrovskyy',
             'email'  => 'spambox03@mail.ru',
-            'date'   => '2009-03-01',
+            'date'   => '2009-03-15',
             'name'   => 'Columns Plugin',
             'desc'   => 'Arrange information in multiple columns.',
             'url'    => 'http://wiki.splitbrain.org/plugin:columns'

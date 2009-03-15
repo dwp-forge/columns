@@ -31,10 +31,10 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
         return array(
             'author' => 'Mykola Ostrovskyy',
             'email'  => 'spambox03@mail.ru',
-            'date'   => '2009-03-01',
+            'date'   => '2009-03-15',
             'name'   => 'Columns',
             'desc'   => 'Arrange information in multiple columns.',
-            'url'    => 'http://wiki.splitbrain.org/plugin:columns',
+            'url'    => 'http://wiki.splitbrain.org/plugin:columns'
         );
     }
 
