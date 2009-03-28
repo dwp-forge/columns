@@ -51,14 +51,14 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
     function handle(&$event, $param) {
         $style = $this->_buildLayout($event);
         if (count($this->block) > 0) {
-            $change = array();
+            $correction = array();
             foreach ($this->block as $block) {
                 $block->processAttributes($event);
-                $change = array_merge($change, $block->getCallChanges($event));
+                $correction = array_merge($correction, $block->getCallCorrections($event));
             }
-            if (count($change) > 0) {
-                $change = $this->_sortChanges($change);
-                $this->_applyChanges($event, $change);
+            if (count($correction) > 0) {
+                $correction = $this->_sortCorrections($correction);
+                $this->_applyCorrections($event, $correction);
             }
         }
     }
@@ -98,10 +98,10 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
     /**
      *
      */
-    function _sortChanges($change) {
+    function _sortCorrections($correction) {
         $result = array();
-        foreach ($change as $ch) {
-            $result[$ch['index']] = $ch;
+        foreach ($correction as $c) {
+            $result[$c['index']] = $c;
         }
         ksort($result);
         return array_values($result);
@@ -110,24 +110,24 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
     /**
      *
      */
-    function _applyChanges(&$event, $change) {
+    function _applyCorrections(&$event, $correction) {
         $calls = count($event->data->calls);
-        $changes = count($change);
+        $corrections = count($correction);
         $call = array();
-        for ($c = 0, $ch = 0; $c < $calls; $c++) {
-            if (($ch < $changes) && ($change[$ch]['index'] == $c)) {
-                switch ($change[$ch]['command']) {
+        for ($c = 0, $cr = 0; $c < $calls; $c++) {
+            if (($cr < $corrections) && ($correction[$cr]['index'] == $c)) {
+                switch ($correction[$cr]['command']) {
                     case 'delete':
                         break;
 
                     case 'insert':
-                        foreach ($change[$ch]['call'] as $cl) {
+                        foreach ($correction[$cr]['call'] as $cl) {
                             $call[] = $cl;
                         }
                         $call[] = $event->data->calls[$c];
                         break;
                 }
-                $ch++;
+                $cr++;
             }
             else {
                 $call[] = $event->data->calls[$c];
@@ -339,14 +339,14 @@ class columns_block {
     }
 
     /**
-     * Returns a list of changes that have to be applied to the instruction array
+     * Returns a list of corrections that have to be applied to the instruction array
      */
-    function getCallChanges(&$event) {
+    function getCallCorrections(&$event) {
         $columns = count($this->column);
-        $change = array();
+        $correction = array();
         for ($c = 0; $c < $columns; $c++) {
             if ($this->closeSection[$c] != -1) {
-                $change[] = $this->_buildChange($this->closeSection[$c], 'delete');
+                $correction[] = $this->_buildCorrection($this->closeSection[$c], 'delete');
                 if ($c < ($columns - 1)) {
                     $insert = $this->column[$c + 1];
                 }
@@ -356,22 +356,22 @@ class columns_block {
                 $call = array();
                 $call[] = array('section_close', array(), $event->data->calls[$insert][2]);
                 //TODO: Do something about section_edit?
-                $change[] = $this->_buildChange($insert, 'insert', $call);
+                $correction[] = $this->_buildCorrection($insert, 'insert', $call);
             }
         }
-        return $change;
+        return $correction;
     }
 
     /**
      *
      */
-    function _buildChange($index, $command, $call = NULL) {
-        $change['index'] = $index;
-        $change['command'] = $command;
+    function _buildCorrection($index, $command, $call = NULL) {
+        $correction['index'] = $index;
+        $correction['command'] = $command;
         if ($command == 'insert') {
-            $change['call'] = $call;
+            $correction['call'] = $call;
         }
-        return $change;
+        return $correction;
     }
 }
 
