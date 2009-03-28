@@ -41,9 +41,9 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         $exit = '<\/' . $columns . '>';
         $lookAhead = '(?=.*?' . $exit . ')';
 
-        $this->lexerSyntax['enter'] = '\n' . $enterLexer . $lookAhead;
-        $this->lexerSyntax['newcol'] = '\n' . $newColumnLexer . $lookAhead;
-        $this->lexerSyntax['exit'] = '\n' . $exit;
+        $this->lexerSyntax['enter'] = $enterLexer . $lookAhead;
+        $this->lexerSyntax['newcol'] = $newColumnLexer . $lookAhead;
+        $this->lexerSyntax['exit'] = $exit;
 
         $this->syntax[DOKU_LEXER_ENTER] = '/' . $enterHandler . '/';
         $this->syntax[DOKU_LEXER_MATCHED] = '/' . $newColumnHandler . '/';
