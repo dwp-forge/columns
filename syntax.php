@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Plugin Columns
+ * Plugin Columns: Syntax & rendering
  *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Mykola Ostrovskyy <spambox03@mail.ru>
@@ -13,6 +13,7 @@ if(!defined('DOKU_INC')) die();
 
 if(!defined('DOKU_PLUGIN')) define('DOKU_PLUGIN', DOKU_INC . 'lib/plugins/');
 require_once(DOKU_PLUGIN . 'syntax.php');
+require_once(DOKU_PLUGIN . 'columns/info.php');
 
 class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
 
@@ -53,14 +54,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
      * Return some info
      */
     function getInfo() {
-        return array(
-            'author' => 'Mykola Ostrovskyy',
-            'email'  => 'spambox03@mail.ru',
-            'date'   => '2009-03-15',
-            'name'   => 'Columns Plugin',
-            'desc'   => 'Arrange information in multiple columns.',
-            'url'    => 'http://wiki.splitbrain.org/plugin:columns'
-        );
+        return columns_getInfo('syntax & rendering');
     }
 
     /**

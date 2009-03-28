@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Plugin Columns
+ * Plugin Columns: Layout parser
  *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Mykola Ostrovskyy <spambox03@mail.ru>
@@ -12,6 +12,7 @@ if(!defined('DOKU_INC')) die();
 
 if(!defined('DOKU_PLUGIN')) define('DOKU_PLUGIN', DOKU_INC . 'lib/plugins/');
 require_once(DOKU_PLUGIN . 'action.php');
+require_once(DOKU_PLUGIN . 'columns/info.php');
 require_once(DOKU_PLUGIN . 'columns/rewriter.php');
 
 class action_plugin_columns extends DokuWiki_Action_Plugin {
@@ -29,14 +30,7 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
      * Return some info
      */
     function getInfo() {
-        return array(
-            'author' => 'Mykola Ostrovskyy',
-            'email'  => 'spambox03@mail.ru',
-            'date'   => '2009-03-15',
-            'name'   => 'Columns',
-            'desc'   => 'Arrange information in multiple columns.',
-            'url'    => 'http://wiki.splitbrain.org/plugin:columns'
-        );
+        return columns_getInfo('layout parser');
     }
 
     /**
