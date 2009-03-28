@@ -12,6 +12,7 @@ if(!defined('DOKU_INC')) die();
 
 if(!defined('DOKU_PLUGIN')) define('DOKU_PLUGIN', DOKU_INC . 'lib/plugins/');
 require_once(DOKU_PLUGIN . 'action.php');
+require_once(DOKU_PLUGIN . 'columns/rewriter.php');
 
 class action_plugin_columns extends DokuWiki_Action_Plugin {
 
@@ -51,15 +52,12 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
     function handle(&$event, $param) {
         $style = $this->_buildLayout($event);
         if (count($this->block) > 0) {
-            $correction = array();
+            $rewriter = new instruction_rewriter();
             foreach ($this->block as $block) {
                 $block->processAttributes($event);
-                $correction = array_merge($correction, $block->getCallCorrections($event));
+                $rewriter->addCorrections($block->getCorrections());
             }
-            if (count($correction) > 0) {
-                $correction = $this->_sortCorrections($correction);
-                $this->_applyCorrections($event, $correction);
-            }
+            $rewriter->process($event->data->calls);
         }
     }
 
@@ -95,46 +93,6 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
         }
     }
 
-    /**
-     *
-     */
-    function _sortCorrections($correction) {
-        $result = array();
-        foreach ($correction as $c) {
-            $result[$c['index']] = $c;
-        }
-        ksort($result);
-        return array_values($result);
-    }
-
-    /**
-     *
-     */
-    function _applyCorrections(&$event, $correction) {
-        $calls = count($event->data->calls);
-        $corrections = count($correction);
-        $call = array();
-        for ($c = 0, $cr = 0; $c < $calls; $c++) {
-            if (($cr < $corrections) && ($correction[$cr]['index'] == $c)) {
-                switch ($correction[$cr]['command']) {
-                    case 'delete':
-                        break;
-
-                    case 'insert':
-                        foreach ($correction[$cr]['call'] as $cl) {
-                            $call[] = $cl;
-                        }
-                        $call[] = $event->data->calls[$c];
-                        break;
-                }
-                $cr++;
-            }
-            else {
-                $call[] = $event->data->calls[$c];
-            }
-        }
-        $event->data->calls = $call;
-    }
 }
 
 class columns_block {
@@ -341,35 +299,23 @@ class columns_block {
     /**
      * Returns a list of corrections that have to be applied to the instruction array
      */
-    function getCallCorrections(&$event) {
+    function getCorrections() {
         $columns = count($this->column);
         $correction = array();
         for ($c = 0; $c < $columns; $c++) {
             if ($this->closeSection[$c] != -1) {
-                $correction[] = $this->_buildCorrection($this->closeSection[$c], 'delete');
+                $correction[] = new instruction_rewriter_delete($this->closeSection[$c]);
                 if ($c < ($columns - 1)) {
                     $insert = $this->column[$c + 1];
                 }
                 else {
                     $insert = $this->end;
                 }
-                $call = array();
-                $call[] = array('section_close', array(), $event->data->calls[$insert][2]);
+                $insert = new instruction_rewriter_insert($insert);
+                $insert->addCall('section_close', array());
                 //TODO: Do something about section_edit?
-                $correction[] = $this->_buildCorrection($insert, 'insert', $call);
+                $correction[] = $insert;
             }
-        }
-        return $correction;
-    }
-
-    /**
-     *
-     */
-    function _buildCorrection($index, $command, $call = NULL) {
-        $correction['index'] = $index;
-        $correction['command'] = $command;
-        if ($command == 'insert') {
-            $correction['call'] = $call;
         }
         return $correction;
     }
