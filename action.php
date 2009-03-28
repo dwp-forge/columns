@@ -22,7 +22,7 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
      * Constructor
      */
     function action_plugin_columns() {
-        $this->block = array();
+        $this->block[0] = new columns_root_block();
     }
 
     /**
@@ -51,14 +51,12 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
      */
     function handle(&$event, $param) {
         $style = $this->_buildLayout($event);
-        if (count($this->block) > 0) {
-            $rewriter = new instruction_rewriter();
-            foreach ($this->block as $block) {
-                $block->processAttributes($event);
-                $rewriter->addCorrections($block->getCorrections());
-            }
-            $rewriter->process($event->data->calls);
+        $rewriter = new instruction_rewriter();
+        foreach ($this->block as $block) {
+            $block->processAttributes($event);
+            $rewriter->addCorrections($block->getCorrections());
         }
+        $rewriter->process($event->data->calls);
     }
 
     /**
@@ -66,10 +64,10 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
      */
     function _buildLayout(&$event) {
         $calls = count($event->data->calls);
-        $currentBlock = NULL;
+        $currentBlock = $this->block[0];
         for ($c = 0; $c < $calls; $c++) {
             $call =& $event->data->calls[$c];
-            if (($call[0] == 'section_close') && ($currentBlock != NULL)) {
+            if ($call[0] == 'section_close') {
                 $currentBlock->closeSection($c);
             }
             if (($call[0] == 'plugin') && ($call[1][0] == 'columns')) {
@@ -92,7 +90,62 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
             }
         }
     }
+}
 
+class columns_root_block {
+
+    var $call;
+
+    /**
+     * Constructor
+     */
+    function columns_root_block() {
+        $this->call = array();
+    }
+
+    /**
+     *
+     */
+    function getParent() {
+        return $this;
+    }
+
+    /**
+     * Collect stray <newcolumn> tags
+     */
+    function addColumn($callIndex) {
+        $this->call[] = $callIndex;
+    }
+
+    /**
+     *
+     */
+    function closeSection($callIndex) {
+    }
+
+    /**
+     * Collect stray </colums> tags
+     */
+    function close($callIndex) {
+        $this->call[] = $callIndex;
+    }
+
+    /**
+     *
+     */
+    function processAttributes(&$event) {
+    }
+
+    /**
+     * Delete all cpatured tags
+     */
+    function getCorrections() {
+        $correction = array();
+        foreach ($this->call as $call) {
+            $correction[] = new instruction_rewriter_delete($call);
+        }
+        return $correction;
+    }
 }
 
 class columns_block {
@@ -300,6 +353,25 @@ class columns_block {
      * Returns a list of corrections that have to be applied to the instruction array
      */
     function getCorrections() {
+        if ($this->end != -1) {
+            $correction = $this->_fixSections();
+        }
+        else {
+            $correction = $this->_deleteColumns();
+        }
+        return $correction;
+    }
+
+    /**
+     * Re-write section_close instructions to produce valid HTML. If there are closed
+     * sections within a column (which implies that there are also opened section) do the
+     * following:
+     *   - Remove first section_close from the column. This removes </div> in the middle
+     *     of the column
+     *   - Add section_close at the end of the column. This closes last open section in
+     *     the column
+     */
+    function _fixSections() {
         $columns = count($this->column);
         $correction = array();
         for ($c = 0; $c < $columns; $c++) {
@@ -316,6 +388,17 @@ class columns_block {
                 //TODO: Do something about section_edit?
                 $correction[] = $insert;
             }
+        }
+        return $correction;
+    }
+
+    /**
+     *
+     */
+    function _deleteColumns() {
+        $correction = array();
+        foreach ($this->column as $column) {
+            $correction[] = new instruction_rewriter_delete($column);
         }
         return $correction;
     }
