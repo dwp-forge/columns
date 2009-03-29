@@ -19,7 +19,7 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
 
     var $block;
     var $currentBlock;
-    var $currentSection;
+    var $currentSectionLevel;
 
     /**
      * Constructor
@@ -27,7 +27,7 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
     function action_plugin_columns() {
         $this->block[0] = new columns_root_block();
         $this->currentBlock = $this->block[0];
-        $this->currentSection = -1;
+        $this->currentSectionLevel = 0;
     }
 
     /**
@@ -66,7 +66,7 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
             $call =& $event->data->calls[$c];
             switch ($call[0]) {
                 case 'section_open':
-                    $this->currentSection = $c;
+                    $this->currentSectionLevel = $call[1][0];
                     break;
 
                 case 'section_close':
@@ -89,12 +89,12 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
         switch ($state) {
             case DOKU_LEXER_ENTER:
                 $this->currentBlock = new columns_block($this->currentBlock);
-                $this->currentBlock->addColumn($callIndex, $this->currentSection);
+                $this->currentBlock->addColumn($callIndex, $this->currentSectionLevel);
                 $this->block[] = $this->currentBlock;
                 break;
 
             case DOKU_LEXER_MATCHED:
-                $this->currentBlock->addColumn($callIndex, $this->currentSection);
+                $this->currentBlock->addColumn($callIndex, $this->currentSectionLevel);
                 break;
 
             case DOKU_LEXER_EXIT:
@@ -126,7 +126,7 @@ class columns_root_block {
     /**
      * Collect stray <newcolumn> tags
      */
-    function addColumn($callIndex, $section) {
+    function addColumn($callIndex, $sectionLevel) {
         $this->call[] = $callIndex;
     }
 
@@ -166,7 +166,7 @@ class columns_block {
     var $parent;
     var $column;
     var $attribute;
-    var $sectionOpen;
+    var $sectionLevel;
     var $sectionClose;
     var $end;
 
@@ -177,7 +177,7 @@ class columns_block {
         $this->parent = $parent;
         $this->column = array();
         $this->attribute = array();
-        $this->sectionOpen = array();
+        $this->sectionLevel = array();
         $this->sectionClose = array();
         $this->end = -1;
     }
@@ -192,10 +192,10 @@ class columns_block {
     /**
      *
      */
-    function addColumn($callIndex, $section) {
+    function addColumn($callIndex, $sectionLevel) {
         $this->column[] = $callIndex;
         $this->attribute[] = new columns_attributes_bag();
-        $this->sectionOpen[] = $section;
+        $this->sectionLevel[] = $sectionLevel;
         $this->sectionClose[] = -1;
     }
 
@@ -276,6 +276,7 @@ class columns_block {
             '/^left|right|center|justify$/' => 'text-align',
             '/^top|middle|bottom$/' => 'vertical-align',
             '/^[lrcjtmb]{1,2}$/' => 'align',
+            '/^continue|\.{3}$/' => 'continue',
             '/^(\*?)((?:-|(?:\d+\.?|\d*\.\d+)(?:%|em|px)))(\*?)$/' => 'width'
         );
         $result = array();
@@ -294,6 +295,10 @@ class columns_block {
 
             case 'align':
                 $result = $this->_parseAlignAttribute($match[0]);
+                break;
+
+            case 'continue':
+                $result[$attributeName] = 'on';
                 break;
 
             case 'width':
@@ -379,20 +384,30 @@ class columns_block {
     }
 
     /**
-     * Re-write section_close instructions to produce valid HTML. If there are closed
-     * sections within a column (which implies that there are also opened section) do the
-     * following:
-     *   - Remove first section_close from the column. This removes </div> in the middle
-     *     of the column
-     *   - Add section_close at the end of the column. This closes last open section in
-     *     the column
+     * Re-write section open/close instructions to produce valid HTML
      */
     function _fixSections() {
         $columns = count($this->column);
         $correction = array();
         for ($c = 0; $c < $columns; $c++) {
-            if ($this->sectionClose[$c] != -1) {
+            /* If there is a section_close within the column there is also a section_open */
+            $deleteSectionClose = ($this->sectionClose[$c] != -1);
+            $closeSection = $deleteSectionClose;
+            if (($this->attribute[$c]->getAttribute('continue') == 'on') && ($this->sectionLevel[$c] > 0)) {
+                /* Insert section_open at the start of the column */
+                $insert = new instruction_rewriter_insert($this->column[$c] + 1);
+                $insert->addCall('section_open', array($this->sectionLevel[$c]));
+                $correction[] = $insert;
+                /* Ensure that this section will be properly closed */
+                $deleteSectionClose = false;
+                $closeSection = true;
+            }
+            if ($deleteSectionClose) {
+                /* Remove first section_close from the column to prevent </div> in the middle of the column */
                 $correction[] = new instruction_rewriter_delete($this->sectionClose[$c]);
+            }
+            if ($closeSection) {
+                /* Close last open section in the column */
                 if ($c < ($columns - 1)) {
                     $insert = $this->column[$c + 1];
                 }
@@ -445,6 +460,17 @@ class columns_attributes_bag {
         if (is_array($attribute) && (count($attribute) > 0)) {
             $this->attribute = array_merge($this->attribute, $attribute);
         }
+    }
+
+    /**
+     *
+     */
+    function getAttribute($name) {
+        $result = '';
+        if (array_key_exists($name, $this->attribute)) {
+            $result = $this->attribute[$name];
+        }
+        return $result;
     }
 
     /**
