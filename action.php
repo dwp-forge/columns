@@ -18,12 +18,14 @@ require_once(DOKU_PLUGIN . 'columns/rewriter.php');
 class action_plugin_columns extends DokuWiki_Action_Plugin {
 
     var $block;
+    var $currentBlock;
 
     /**
      * Constructor
      */
     function action_plugin_columns() {
         $this->block[0] = new columns_root_block();
+        $this->currentBlock = $this->block[0];
     }
 
     /**
@@ -44,7 +46,7 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
      *
      */
     function handle(&$event, $param) {
-        $style = $this->_buildLayout($event);
+        $this->_buildLayout($event);
         $rewriter = new instruction_rewriter();
         foreach ($this->block as $block) {
             $block->processAttributes($event);
@@ -58,30 +60,41 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
      */
     function _buildLayout(&$event) {
         $calls = count($event->data->calls);
-        $currentBlock = $this->block[0];
         for ($c = 0; $c < $calls; $c++) {
             $call =& $event->data->calls[$c];
-            if ($call[0] == 'section_close') {
-                $currentBlock->closeSection($c);
-            }
-            if (($call[0] == 'plugin') && ($call[1][0] == 'columns')) {
-                switch ($call[1][1][0]) {
-                    case DOKU_LEXER_ENTER:
-                        $currentBlock = new columns_block($currentBlock);
-                        $currentBlock->addColumn($c);
-                        $this->block[] = $currentBlock;
-                        break;
+            switch ($call[0]) {
+                case 'section_close':
+                    $this->currentBlock->closeSection($c);
+                    break;
 
-                    case DOKU_LEXER_MATCHED:
-                        $currentBlock->addColumn($c);
-                        break;
-
-                    case DOKU_LEXER_EXIT:
-                        $currentBlock->close($c);
-                        $currentBlock = $currentBlock->getParent();
-                        break;
-                }
+                case 'plugin':
+                    if ($call[1][0] == 'columns') {
+                        $this->_handleColumns($c, $call[1][1][0]);
+                    }
+                    break;
             }
+        }
+    }
+
+    /**
+     *
+     */
+    function _handleColumns($callIndex, $state) {
+        switch ($state) {
+            case DOKU_LEXER_ENTER:
+                $this->currentBlock = new columns_block($this->currentBlock);
+                $this->currentBlock->addColumn($callIndex);
+                $this->block[] = $this->currentBlock;
+                break;
+
+            case DOKU_LEXER_MATCHED:
+                $this->currentBlock->addColumn($callIndex);
+                break;
+
+            case DOKU_LEXER_EXIT:
+                $this->currentBlock->close($callIndex);
+                $this->currentBlock = $this->currentBlock->getParent();
+                break;
         }
     }
 }
