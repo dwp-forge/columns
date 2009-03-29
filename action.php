@@ -19,6 +19,7 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
 
     var $block;
     var $currentBlock;
+    var $currentSection;
 
     /**
      * Constructor
@@ -26,6 +27,7 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
     function action_plugin_columns() {
         $this->block[0] = new columns_root_block();
         $this->currentBlock = $this->block[0];
+        $this->currentSection = -1;
     }
 
     /**
@@ -63,6 +65,10 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
         for ($c = 0; $c < $calls; $c++) {
             $call =& $event->data->calls[$c];
             switch ($call[0]) {
+                case 'section_open':
+                    $this->currentSection = $c;
+                    break;
+
                 case 'section_close':
                     $this->currentBlock->closeSection($c);
                     break;
@@ -83,12 +89,12 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
         switch ($state) {
             case DOKU_LEXER_ENTER:
                 $this->currentBlock = new columns_block($this->currentBlock);
-                $this->currentBlock->addColumn($callIndex);
+                $this->currentBlock->addColumn($callIndex, $this->currentSection);
                 $this->block[] = $this->currentBlock;
                 break;
 
             case DOKU_LEXER_MATCHED:
-                $this->currentBlock->addColumn($callIndex);
+                $this->currentBlock->addColumn($callIndex, $this->currentSection);
                 break;
 
             case DOKU_LEXER_EXIT:
@@ -120,7 +126,7 @@ class columns_root_block {
     /**
      * Collect stray <newcolumn> tags
      */
-    function addColumn($callIndex) {
+    function addColumn($callIndex, $section) {
         $this->call[] = $callIndex;
     }
 
@@ -160,7 +166,8 @@ class columns_block {
     var $parent;
     var $column;
     var $attribute;
-    var $closeSection;
+    var $sectionOpen;
+    var $sectionClose;
     var $end;
 
     /**
@@ -170,7 +177,8 @@ class columns_block {
         $this->parent = $parent;
         $this->column = array();
         $this->attribute = array();
-        $this->closeSection = array();
+        $this->sectionOpen = array();
+        $this->sectionClose = array();
         $this->end = -1;
     }
 
@@ -184,10 +192,11 @@ class columns_block {
     /**
      *
      */
-    function addColumn($callIndex) {
+    function addColumn($callIndex, $section) {
         $this->column[] = $callIndex;
         $this->attribute[] = new columns_attributes_bag();
-        $this->closeSection[] = -1;
+        $this->sectionOpen[] = $section;
+        $this->sectionClose[] = -1;
     }
 
     /**
@@ -195,8 +204,8 @@ class columns_block {
      */
     function closeSection($callIndex) {
         $column = count($this->column) - 1;
-        if ($this->closeSection[$column] == -1) {
-            $this->closeSection[$column] = $callIndex;
+        if ($this->sectionClose[$column] == -1) {
+            $this->sectionClose[$column] = $callIndex;
         }
     }
 
@@ -382,8 +391,8 @@ class columns_block {
         $columns = count($this->column);
         $correction = array();
         for ($c = 0; $c < $columns; $c++) {
-            if ($this->closeSection[$c] != -1) {
-                $correction[] = new instruction_rewriter_delete($this->closeSection[$c]);
+            if ($this->sectionClose[$c] != -1) {
+                $correction[] = new instruction_rewriter_delete($this->sectionClose[$c]);
                 if ($c < ($columns - 1)) {
                     $insert = $this->column[$c + 1];
                 }
