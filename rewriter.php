@@ -7,6 +7,8 @@
  * @author     Mykola Ostrovskyy <spambox03@mail.ru>
  */
 
+if (!class_exists('instruction_rewriter', false)) {
+
 class instruction_rewriter {
 
     var $correction;
@@ -97,8 +99,6 @@ class instruction_rewriter_correction {
 
 class instruction_rewriter_delete extends instruction_rewriter_correction {
 
-    var $index;
-
     /**
      * Constructor
      */
@@ -185,4 +185,6 @@ class instruction_rewriter_append extends instruction_rewriter_call_list {
         $this->appendCalls($output, $lastCall[2]);
         return false;
     }
+}
+
 }
