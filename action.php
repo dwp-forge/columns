@@ -253,7 +253,7 @@ class columns_block {
                 }
                 $nextColumn = $column + 1;
             }
-            if ($column >= 0) {
+            if (($column >= 0) && ($column < count($this->column))) {
                 $this->attribute[$column]->addAttributes($temp);
             }
             $column = $nextColumn;
