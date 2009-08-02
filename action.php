@@ -22,15 +22,6 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
     var $currentSectionLevel;
 
     /**
-     * Constructor
-     */
-    function action_plugin_columns() {
-        $this->block[0] = new columns_root_block();
-        $this->currentBlock = $this->block[0];
-        $this->currentSectionLevel = 0;
-    }
-
-    /**
      * Return some info
      */
     function getInfo() {
@@ -48,6 +39,7 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
      *
      */
     function handle(&$event, $param) {
+        $this->_reset();
         $this->_buildLayout($event);
         $rewriter = new instruction_rewriter();
         foreach ($this->block as $block) {
@@ -80,6 +72,16 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
                     break;
             }
         }
+    }
+
+    /**
+     * Reset internal state
+     */
+    function _reset() {
+        $this->block = array();
+        $this->block[0] = new columns_root_block();
+        $this->currentBlock = $this->block[0];
+        $this->currentSectionLevel = 0;
     }
 
     /**
