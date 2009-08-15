@@ -152,7 +152,7 @@ class columns_root_block {
     }
 
     /**
-     * Delete all cpatured tags
+     * Delete all captured tags
      */
     function getCorrections() {
         $correction = array();
@@ -224,7 +224,7 @@ class columns_block {
     function processAttributes(&$event) {
         $columns = count($this->column);
         for ($c = 0; $c < $columns; $c++) {
-            $call =& $event->data->calls[$this->column[$c]];
+            $call = $event->data->calls[$this->column[$c]];
             if ($c == 0) {
                 $this->_loadTableAttributes($call[1][1][1]);
                 $this->attribute[0]->addAttribute('class', 'first');
@@ -235,7 +235,12 @@ class columns_block {
                     $this->attribute[$c]->addAttribute('class', 'last');
                 }
             }
-            $call[1][1][1] = $this->attribute[$c]->getAttributes();
+        }
+
+        $this->attribute[0]->addAttribute('column-width-list', $this->_getColumnWidthList());
+
+        for ($c = 0; $c < $columns; $c++) {
+            $event->data->calls[$this->column[$c]][1][1][1] = $this->attribute[$c]->getAttributes();
         }
     }
 
@@ -370,6 +375,21 @@ class columns_block {
         else {
             return '';
         }
+    }
+
+    /**
+     * Returns semicolon separated list of widths for each column of the block
+     */
+    function _getColumnWidthList() {
+        $result = '';
+        $columns = count($this->column);
+        for ($c = 0; $c < $columns; $c++) {
+            if ($c > 0) {
+                $result .= ';';
+            }
+            $result .= $this->attribute[$c]->getAttribute('column-width');
+        }
+        return $result;
     }
 
     /**
