@@ -284,7 +284,7 @@ class columns_block {
             '/^top|middle|bottom$/' => 'vertical-align',
             '/^[lrcjtmb]{1,2}$/' => 'align',
             '/^continue|\.{3}$/' => 'continue',
-            '/^(\*?)((?:-|(?:\d+\.?|\d*\.\d+)(?:%|em|px)))(\*?)$/' => 'width'
+            '/^(\*?)((?:-|(?:\d+\.?|\d*\.\d+)(?:%|em|px|cm|mm|in|pt)))(\*?)$/' => 'width'
         );
         $result = array();
         $attributeName = '';
