@@ -59,6 +59,7 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
             switch ($call[0]) {
                 case 'section_open':
                     $this->currentSectionLevel = $call[1][0];
+                    $this->currentBlock->openSection();
                     break;
 
                 case 'section_close':
@@ -109,12 +110,14 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
 
 class columns_root_block {
 
+    var $sectionLevel;
     var $call;
 
     /**
      * Constructor
      */
     function columns_root_block() {
+        $this->sectionLevel = 0;
         $this->call = array();
     }
 
@@ -135,7 +138,20 @@ class columns_root_block {
     /**
      *
      */
+    function openSection() {
+        $this->sectionLevel++;
+    }
+
+    /**
+     *
+     */
     function closeSection($callIndex) {
+        if ($this->sectionLevel > 0) {
+            $this->sectionLevel--;
+        }
+        else {
+            $this->call[] = $callIndex;
+        }
     }
 
     /**
@@ -170,6 +186,7 @@ class columns_block {
     var $column;
     var $attribute;
     var $sectionLevel;
+    var $sectionOpen;
     var $sectionClose;
     var $end;
 
@@ -182,6 +199,7 @@ class columns_block {
         $this->column = array();
         $this->attribute = array();
         $this->sectionLevel = array();
+        $this->sectionOpen = array();
         $this->sectionClose = array();
         $this->end = -1;
     }
@@ -200,7 +218,16 @@ class columns_block {
         $this->column[] = $callIndex;
         $this->attribute[] = new columns_attributes_bag();
         $this->sectionLevel[] = $sectionLevel;
+        $this->sectionOpen[] = false;
         $this->sectionClose[] = -1;
+    }
+
+    /**
+     *
+     */
+    function openSection() {
+        $column = count($this->column) - 1;
+        $this->sectionOpen[$column] = true;
     }
 
     /**
@@ -392,14 +419,14 @@ class columns_block {
 
     /**
      * Re-write section open/close instructions to produce valid HTML
+     * See columns:design#section_fixing for details
      */
     function _fixSections() {
         $columns = count($this->column);
         $correction = array();
         for ($c = 0; $c < $columns; $c++) {
-            /* If there is a section_close within the column there is also a section_open */
             $deleteSectionClose = ($this->sectionClose[$c] != -1);
-            $closeSection = $deleteSectionClose;
+            $closeSection = $this->sectionOpen[$c];
             if (($this->attribute[$c]->getAttribute('continue') == 'on') && ($this->sectionLevel[$c] > 0)) {
                 /* Insert section_open at the start of the column */
                 $insert = new instruction_rewriter_insert($this->column[$c] + 1);
