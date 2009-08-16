@@ -284,7 +284,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         $style .= '<style:table-properties';
         $width = $this->_getAttribute($attribute, 'table-width');
 
-        if ($width != '') {
+        if (($width != '') && ($width != '100%')) {
             $style .= ' style:width="' . $this->_getOdtAbsoluteWidth($metrics, $width) . '"';
         }
         $align = ($width == '100%') ? 'margins' : 'left';
