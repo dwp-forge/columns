@@ -90,7 +90,7 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
     function _handleColumns($callIndex, $state) {
         switch ($state) {
             case DOKU_LEXER_ENTER:
-                $this->currentBlock = new columns_block($this->currentBlock);
+                $this->currentBlock = new columns_block(count($this->block), $this->currentBlock);
                 $this->currentBlock->addColumn($callIndex, $this->currentSectionLevel);
                 $this->block[] = $this->currentBlock;
                 break;
@@ -165,6 +165,7 @@ class columns_root_block {
 
 class columns_block {
 
+    var $id;
     var $parent;
     var $column;
     var $attribute;
@@ -175,7 +176,8 @@ class columns_block {
     /**
      * Constructor
      */
-    function columns_block($parent) {
+    function columns_block($id, $parent) {
+        $this->id = $id;
         $this->parent = $parent;
         $this->column = array();
         $this->attribute = array();
@@ -224,9 +226,10 @@ class columns_block {
     function processAttributes(&$event) {
         $columns = count($this->column);
         for ($c = 0; $c < $columns; $c++) {
-            $call = $event->data->calls[$this->column[$c]];
+            $call =& $event->data->calls[$this->column[$c]];
             if ($c == 0) {
                 $this->_loadTableAttributes($call[1][1][1]);
+                $this->attribute[0]->addAttribute('columns', $columns);
                 $this->attribute[0]->addAttribute('class', 'first');
             }
             else {
@@ -235,12 +238,9 @@ class columns_block {
                     $this->attribute[$c]->addAttribute('class', 'last');
                 }
             }
-        }
-
-        $this->attribute[0]->addAttribute('column-width-list', $this->_getColumnWidthList());
-
-        for ($c = 0; $c < $columns; $c++) {
-            $event->data->calls[$this->column[$c]][1][1][1] = $this->attribute[$c]->getAttributes();
+            $this->attribute[$c]->addAttribute('block-id', $this->id);
+            $this->attribute[$c]->addAttribute('column-id', $c + 1);
+            $call[1][1][1] = $this->attribute[$c]->getAttributes();
         }
     }
 
@@ -375,21 +375,6 @@ class columns_block {
         else {
             return '';
         }
-    }
-
-    /**
-     * Returns semicolon separated list of widths for each column of the block
-     */
-    function _getColumnWidthList() {
-        $result = '';
-        $columns = count($this->column);
-        for ($c = 0; $c < $columns; $c++) {
-            if ($c > 0) {
-                $result .= ';';
-            }
-            $result .= $this->attribute[$c]->getAttribute('column-width');
-        }
-        return $result;
     }
 
     /**
