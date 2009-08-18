@@ -278,13 +278,13 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
      *
      */
     function _addOdtTableStyle(&$renderer, $attribute) {
-        $metrics = $this->_getOdtMetrics($renderer->autostyles);
         $styleName = $this->_getOdtTableStyleName($this->_getAttribute($attribute, 'block-id'));
         $style = '<style:style style:name="' . $styleName . '" style:family="table">';
         $style .= '<style:table-properties';
         $width = $this->_getAttribute($attribute, 'table-width');
 
         if (($width != '') && ($width != '100%')) {
+            $metrics = $this->_getOdtMetrics($renderer->autostyles);
             $style .= ' style:width="' . $this->_getOdtAbsoluteWidth($metrics, $width) . '"';
         }
         $align = ($width == '100%') ? 'margins' : 'left';
@@ -298,7 +298,6 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
      *
      */
     function _addOdtColumnStyles(&$renderer, $attribute) {
-        $metrics = $this->_getOdtMetrics($renderer->autostyles);
         $blockId = $this->_getAttribute($attribute, 'block-id');
         $columnId = $this->_getAttribute($attribute, 'column-id');
         $styleName = $this->_getOdtTableStyleName($blockId, $columnId);
@@ -308,6 +307,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         $width = $this->_getAttribute($attribute, 'column-width');
 
         if ($width != '') {
+            $metrics = $this->_getOdtMetrics($renderer->autostyles);
             $style .= ' style:column-width="' . $this->_getOdtAbsoluteWidth($metrics, $width) . '"';
         }
         $style .= '/>';
