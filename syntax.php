@@ -383,11 +383,20 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
             $result['page-width-units'] = 'cm';
         }
 
-        /* There seems to be no way to get default font size apart from
-           loading styles.xml, which is expensive thing to do for every
-           columns block. */
-        $result['font-size'] = 12;
-        $result['font-size-units'] = 'pt';
+        /* There seems to be no easy way to get default font size apart from loading styles.xml. */
+        $styles = io_readFile(DOKU_PLUGIN . 'odt/styles.xml');
+        if (preg_match('/<style:default-style style:family="paragraph">(.+?)<\/style:default-style>/s', $styles, $match) == 1) {
+            if (preg_match('/<style:text-properties(.+?)>/', $match[1], $match) == 1) {
+                if (preg_match('/fo:font-size="([\d\.]+)(.+?)"/', $match[1], $match) == 1) {
+                    $result['font-size'] = floatval($match[1]);
+                    $result['font-size-units'] = $match[2];
+                }
+            }
+        }
+        if (!array_key_exists('font-size', $result)) {
+            $result['font-size'] = 12;
+            $result['font-size-units'] = 'pt';
+        }
         return $result;
     }
 
