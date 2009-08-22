@@ -11,10 +11,10 @@ function columns_getInfo($component = '') {
     $info = array(
         'author' => 'Mykola Ostrovskyy',
         'email'  => 'spambox03@mail.ru',
-        'date'   => '2009-03-29',
+        'date'   => '2009-08-22',
         'name'   => 'Columns Plugin',
         'desc'   => 'Arrange information in multiple columns.',
-        'url'    => 'http://wiki.splitbrain.org/plugin:columns'
+        'url'    => 'http://www.dokuwiki.org/plugin:columns'
     );
     if ($component != '') {
         if (($_REQUEST['do'] == 'admin') && !empty($_REQUEST['page']) && ($_REQUEST['page'] == 'plugin')) {
