@@ -121,7 +121,7 @@ class instruction_rewriter_call_list extends instruction_rewriter_correction {
     /**
      * Constructor
      */
-    function instruction_rewriter_insert($index) {
+    function instruction_rewriter_call_list($index) {
         parent::instruction_rewriter_correction($index);
         $this->call = array();
     }
