@@ -184,11 +184,8 @@ class columns_block {
     var $id;
     var $parent;
     var $column;
-    var $attribute;
-    var $sectionLevel;
-    var $sectionOpen;
-    var $sectionClose;
-    var $end;
+    var $currentColumn;
+    var $closed;
 
     /**
      * Constructor
@@ -197,11 +194,8 @@ class columns_block {
         $this->id = $id;
         $this->parent = $parent;
         $this->column = array();
-        $this->attribute = array();
-        $this->sectionLevel = array();
-        $this->sectionOpen = array();
-        $this->sectionClose = array();
-        $this->end = -1;
+        $this->currentColumn = null;
+        $this->closed = false;
     }
 
     /**
@@ -215,36 +209,33 @@ class columns_block {
      *
      */
     function addColumn($callIndex, $sectionLevel) {
-        $this->column[] = $callIndex;
-        $this->attribute[] = new columns_attributes_bag();
-        $this->sectionLevel[] = $sectionLevel;
-        $this->sectionOpen[] = false;
-        $this->sectionClose[] = -1;
+        if ($this->currentColumn != null) {
+            $this->currentColumn->close($callIndex);
+        }
+        $this->currentColumn = new columns_column($callIndex, $sectionLevel);
+        $this->column[] = $this->currentColumn;
     }
 
     /**
      *
      */
     function openSection() {
-        $column = count($this->column) - 1;
-        $this->sectionOpen[$column] = true;
+        $this->currentColumn->openSection();
     }
 
     /**
      *
      */
     function closeSection($callIndex) {
-        $column = count($this->column) - 1;
-        if ($this->sectionClose[$column] == -1) {
-            $this->sectionClose[$column] = $callIndex;
-        }
+        $this->currentColumn->closeSection($callIndex);
     }
 
     /**
      *
      */
     function close($callIndex) {
-        $this->end = $callIndex;
+        $this->currentColumn->close($callIndex);
+        $this->closed = true;
     }
 
     /**
@@ -253,40 +244,40 @@ class columns_block {
     function processAttributes(&$event) {
         $columns = count($this->column);
         for ($c = 0; $c < $columns; $c++) {
-            $call =& $event->data->calls[$this->column[$c]];
+            $call =& $event->data->calls[$this->column[$c]->getOpenCall()];
             if ($c == 0) {
-                $this->_loadTableAttributes($call[1][1][1]);
-                $this->attribute[0]->addAttribute('columns', $columns);
-                $this->attribute[0]->addAttribute('class', 'first');
+                $this->_loadBlockAttributes($call[1][1][1]);
+                $this->column[0]->addAttribute('columns', $columns);
+                $this->column[0]->addAttribute('class', 'first');
             }
             else {
                 $this->_loadColumnAttributes($c, $call[1][1][1]);
                 if ($c == ($columns - 1)) {
-                    $this->attribute[$c]->addAttribute('class', 'last');
+                    $this->column[$c]->addAttribute('class', 'last');
                 }
             }
-            $this->attribute[$c]->addAttribute('block-id', $this->id);
-            $this->attribute[$c]->addAttribute('column-id', $c + 1);
-            $call[1][1][1] = $this->attribute[$c]->getAttributes();
+            $this->column[$c]->addAttribute('block-id', $this->id);
+            $this->column[$c]->addAttribute('column-id', $c + 1);
+            $call[1][1][1] = $this->column[$c]->getAttributes();
         }
     }
 
     /**
      * Convert raw attributes into column attributes
      */
-    function _loadTableAttributes($attribute) {
+    function _loadBlockAttributes($attribute) {
         $column = -1;
         $nextColumn = -1;
         foreach ($attribute as $a) {
             list($name, $temp) = $this->_parseAttribute($a);
             if ($name == 'width') {
                 if (($column == -1) && array_key_exists('column-width', $temp)) {
-                    $this->attribute[0]->addAttribute('table-width', $temp['column-width']);
+                    $this->column[0]->addAttribute('table-width', $temp['column-width']);
                 }
                 $nextColumn = $column + 1;
             }
             if (($column >= 0) && ($column < count($this->column))) {
-                $this->attribute[$column]->addAttributes($temp);
+                $this->column[$column]->addAttributes($temp);
             }
             $column = $nextColumn;
         }
@@ -298,7 +289,7 @@ class columns_block {
     function _loadColumnAttributes($column, $attribute) {
         foreach ($attribute as $a) {
             list($name, $temp) = $this->_parseAttribute($a);
-            $this->attribute[$column]->addAttributes($temp);
+            $this->column[$column]->addAttributes($temp);
         }
     }
 
@@ -408,7 +399,7 @@ class columns_block {
      * Returns a list of corrections that have to be applied to the instruction array
      */
     function getCorrections() {
-        if ($this->end != -1) {
+        if ($this->closed) {
             $correction = $this->_fixSections();
         }
         else {
@@ -422,37 +413,9 @@ class columns_block {
      * See columns:design#section_fixing for details
      */
     function _fixSections() {
-        $columns = count($this->column);
         $correction = array();
-        for ($c = 0; $c < $columns; $c++) {
-            $deleteSectionClose = ($this->sectionClose[$c] != -1);
-            $closeSection = $this->sectionOpen[$c];
-            if (($this->attribute[$c]->getAttribute('continue') == 'on') && ($this->sectionLevel[$c] > 0)) {
-                /* Insert section_open at the start of the column */
-                $insert = new instruction_rewriter_insert($this->column[$c] + 1);
-                $insert->addCall('section_open', array($this->sectionLevel[$c]));
-                $correction[] = $insert;
-                /* Ensure that this section will be properly closed */
-                $deleteSectionClose = false;
-                $closeSection = true;
-            }
-            if ($deleteSectionClose) {
-                /* Remove first section_close from the column to prevent </div> in the middle of the column */
-                $correction[] = new instruction_rewriter_delete($this->sectionClose[$c]);
-            }
-            if ($closeSection) {
-                /* Close last open section in the column */
-                if ($c < ($columns - 1)) {
-                    $insert = $this->column[$c + 1];
-                }
-                else {
-                    $insert = $this->end;
-                }
-                $insert = new instruction_rewriter_insert($insert);
-                $insert->addCall('section_close', array());
-                //TODO: Do something about section_edit?
-                $correction[] = $insert;
-            }
+        foreach ($this->column as $column) {
+            $correction = array_merge($correction, $column->getCorrections());
         }
         return $correction;
     }
@@ -463,7 +426,7 @@ class columns_block {
     function _deleteColumns() {
         $correction = array();
         foreach ($this->column as $column) {
-            $correction[] = new instruction_rewriter_delete($column);
+            $correction[] = $column->delete();
         }
         return $correction;
     }
@@ -512,5 +475,107 @@ class columns_attributes_bag {
      */
     function getAttributes() {
         return $this->attribute;
+    }
+}
+
+class columns_column extends columns_attributes_bag {
+
+    var $open;
+    var $close;
+    var $sectionLevel;
+    var $sectionOpen;
+    var $sectionClose;
+
+    /**
+     * Constructor
+     */
+    function columns_column($open, $sectionLevel) {
+        parent::columns_attributes_bag();
+
+        $this->open = $open;
+        $this->close = -1;
+        $this->sectionLevel = $sectionLevel;
+        $this->sectionOpen = false;
+        $this->sectionClose = -1;
+    }
+
+    /**
+     *
+     */
+    function getOpenCall() {
+        return $this->open;
+    }
+
+    /**
+     *
+     */
+    function openSection() {
+        $this->sectionOpen = true;
+    }
+
+    /**
+     *
+     */
+    function closeSection($callIndex) {
+        if ($this->sectionClose == -1) {
+            $this->sectionClose = $callIndex;
+        }
+    }
+
+    /**
+     *
+     */
+    function close($callIndex) {
+        $this->close = $callIndex;
+    }
+
+    /**
+     *
+     */
+    function delete() {
+        return new instruction_rewriter_delete($this->open);
+    }
+
+    /**
+     * Re-write section open/close instructions to produce valid HTML
+     * See columns:design#section_fixing for details
+     */
+    function getCorrections() {
+        $result = array();
+        $deleteSectionClose = ($this->sectionClose != -1);
+        $closeSection = $this->sectionOpen;
+        if (($this->getAttribute('continue') == 'on') && ($this->sectionLevel > 0)) {
+            $result[] = $this->_openStartSection();
+            /* Ensure that this section will be properly closed */
+            $deleteSectionClose = false;
+            $closeSection = true;
+        }
+        if ($deleteSectionClose) {
+            /* Remove first section_close from the column to prevent </div> in the middle of the column */
+            $result[] = new instruction_rewriter_delete($this->sectionClose);
+        }
+        if ($closeSection) {
+            $result[] = $this->_closeLastSection();
+        }
+        return $result;
+    }
+
+    /**
+     * Insert section_open at the start of the column
+     */
+    function _openStartSection() {
+        $insert = new instruction_rewriter_insert($this->open + 1);
+        $insert->addCall('section_open', array($this->sectionLevel));
+        return $insert;
+    }
+
+    /**
+     * Close last open section in the column
+     */
+    function _closeLastSection() {
+        $insert = new instruction_rewriter_insert($this->close);
+        $insert->addCall('section_close', array());
+        //TODO: Do something about section_edit?
+        return $insert;
     }
 }
