@@ -91,7 +91,7 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
      *
      */
     function _detectSectionEdit($call, $start) {
-        $result = -1;
+        $result = null;
         $calls = count($call);
         for ($c = $start + 1; $c < $calls; $c++) {
             switch ($call[$c][0]) {
@@ -104,7 +104,7 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
                 case 'section_edit':
                     if (end($this->sectionEdit) != $c) {
                         $this->sectionEdit[] = $c;
-                        $result = $c;
+                        $result = array('call' => $c, 'data' => $call[$c][1]);
                     }
                     break 2;
 
@@ -191,6 +191,18 @@ class columns_root_block {
     }
 
     /**
+     *
+     */
+    function startSection($callInfo) {
+    }
+
+    /**
+     *
+     */
+    function endSection($callInfo) {
+    }
+
+    /**
      * Collect stray </colums> tags
      */
     function close($callIndex) {
@@ -269,15 +281,15 @@ class columns_block {
     /**
      *
      */
-    function startSection($callIndex) {
-        $this->currentColumn->startSection($callIndex);
+    function startSection($callInfo) {
+        $this->currentColumn->startSection($callInfo);
     }
 
     /**
      *
      */
-    function endSection($callIndex) {
-        $this->currentColumn->endSection($callIndex);
+    function endSection($callInfo) {
+        $this->currentColumn->endSection($callInfo);
     }
 
     /**
@@ -549,8 +561,8 @@ class columns_column extends columns_attributes_bag {
         $this->sectionLevel = $sectionLevel;
         $this->sectionOpen = false;
         $this->sectionClose = -1;
-        $this->sectionStart = -1;
-        $this->sectionEnd = -1;
+        $this->sectionStart = null;
+        $this->sectionEnd = null;
     }
 
     /**
@@ -579,15 +591,15 @@ class columns_column extends columns_attributes_bag {
     /**
      *
      */
-    function startSection($callIndex) {
-        $this->sectionStart = $callIndex;
+    function startSection($callInfo) {
+        $this->sectionStart = $callInfo;
     }
 
     /**
      *
      */
-    function endSection($callIndex) {
-        $this->sectionEnd = $callIndex;
+    function endSection($callInfo) {
+        $this->sectionEnd = $callInfo;
     }
 
     /**
@@ -612,6 +624,9 @@ class columns_column extends columns_attributes_bag {
         $result = array();
         $deleteSectionClose = ($this->sectionClose != -1);
         $closeSection = $this->sectionOpen;
+        if ($this->sectionStart != null) {
+            $result = array_merge($result, $this->_moveStartSectionEdit());
+        }
         if (($this->getAttribute('continue') == 'on') && ($this->sectionLevel > 0)) {
             $result[] = $this->_openStartSection();
             /* Ensure that this section will be properly closed */
@@ -622,9 +637,20 @@ class columns_column extends columns_attributes_bag {
             /* Remove first section_close from the column to prevent </div> in the middle of the column */
             $result[] = new instruction_rewriter_delete($this->sectionClose);
         }
-        if ($closeSection) {
-            $result[] = $this->_closeLastSection();
+        if (($closeSection) || ($this->sectionEnd != null)) {
+            $result = array_merge($result, $this->_closeLastSection($closeSection));
         }
+        return $result;
+    }
+
+    /**
+     * Moves section_edit at the start of the column out of the column
+     */
+    function _moveStartSectionEdit() {
+        $result = array();
+        $result[0] = new instruction_rewriter_insert($this->open);
+        $result[0]->addCall('section_edit', $this->sectionStart['data']);
+        $result[1] = new instruction_rewriter_delete($this->sectionStart['call']);
         return $result;
     }
 
@@ -640,10 +666,16 @@ class columns_column extends columns_attributes_bag {
     /**
      * Close last open section in the column
      */
-    function _closeLastSection() {
-        $insert = new instruction_rewriter_insert($this->close);
-        $insert->addCall('section_close', array());
-        //TODO: Do something about section_edit?
-        return $insert;
+    function _closeLastSection($closeSection) {
+        $result = array();
+        $result[0] = new instruction_rewriter_insert($this->close);
+        if ($closeSection) {
+            $result[0]->addCall('section_close', array());
+        }
+        if ($this->sectionEnd != null) {
+            $result[0]->addCall('section_edit', $this->sectionEnd['data']);
+            $result[1] = new instruction_rewriter_delete($this->sectionEnd['call']);
+        }
+        return $result;
     }
 }
