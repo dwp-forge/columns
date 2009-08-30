@@ -20,6 +20,7 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
     var $block;
     var $currentBlock;
     var $currentSectionLevel;
+    var $sectionEdit;
 
     /**
      * Return some info
@@ -68,7 +69,7 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
 
                 case 'plugin':
                     if ($call[1][0] == 'columns') {
-                        $this->_handleColumns($c, $call[1][1][0]);
+                        $this->_handleColumns($c, $call[1][1][0], $this->_detectSectionEdit($event->data->calls, $c));
                     }
                     break;
             }
@@ -83,24 +84,59 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
         $this->block[0] = new columns_root_block();
         $this->currentBlock = $this->block[0];
         $this->currentSectionLevel = 0;
+        $this->sectionEdit = array();
     }
 
     /**
      *
      */
-    function _handleColumns($callIndex, $state) {
+    function _detectSectionEdit($call, $start) {
+        $result = -1;
+        $calls = count($call);
+        for ($c = $start + 1; $c < $calls; $c++) {
+            switch ($call[$c][0]) {
+                case 'section_close':
+                case 'p_open':
+                case 'p_close':
+                    /* Skip these instructions */
+                    break;
+
+                case 'section_edit':
+                    if (end($this->sectionEdit) != $c) {
+                        $this->sectionEdit[] = $c;
+                        $result = $c;
+                    }
+                    break 2;
+
+                case 'plugin':
+                    break ($call[$c][1][0] == 'columns') ? 1 : 2;
+
+                default:
+                    break 2;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     *
+     */
+    function _handleColumns($callIndex, $state, $sectionEdit) {
         switch ($state) {
             case DOKU_LEXER_ENTER:
                 $this->currentBlock = new columns_block(count($this->block), $this->currentBlock);
                 $this->currentBlock->addColumn($callIndex, $this->currentSectionLevel);
+                $this->currentBlock->startSection($sectionEdit);
                 $this->block[] = $this->currentBlock;
                 break;
 
             case DOKU_LEXER_MATCHED:
                 $this->currentBlock->addColumn($callIndex, $this->currentSectionLevel);
+                $this->currentBlock->startSection($sectionEdit);
                 break;
 
             case DOKU_LEXER_EXIT:
+                $this->currentBlock->endSection($sectionEdit);
                 $this->currentBlock->close($callIndex);
                 $this->currentBlock = $this->currentBlock->getParent();
                 break;
@@ -228,6 +264,20 @@ class columns_block {
      */
     function closeSection($callIndex) {
         $this->currentColumn->closeSection($callIndex);
+    }
+
+    /**
+     *
+     */
+    function startSection($callIndex) {
+        $this->currentColumn->startSection($callIndex);
+    }
+
+    /**
+     *
+     */
+    function endSection($callIndex) {
+        $this->currentColumn->endSection($callIndex);
     }
 
     /**
@@ -485,6 +535,8 @@ class columns_column extends columns_attributes_bag {
     var $sectionLevel;
     var $sectionOpen;
     var $sectionClose;
+    var $sectionStart;
+    var $sectionEnd;
 
     /**
      * Constructor
@@ -497,6 +549,8 @@ class columns_column extends columns_attributes_bag {
         $this->sectionLevel = $sectionLevel;
         $this->sectionOpen = false;
         $this->sectionClose = -1;
+        $this->sectionStart = -1;
+        $this->sectionEnd = -1;
     }
 
     /**
@@ -520,6 +574,20 @@ class columns_column extends columns_attributes_bag {
         if ($this->sectionClose == -1) {
             $this->sectionClose = $callIndex;
         }
+    }
+
+    /**
+     *
+     */
+    function startSection($callIndex) {
+        $this->sectionStart = $callIndex;
+    }
+
+    /**
+     *
+     */
+    function endSection($callIndex) {
+        $this->sectionEnd = $callIndex;
     }
 
     /**
