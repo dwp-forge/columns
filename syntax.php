@@ -119,6 +119,12 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
                 case DOKU_LEXER_EXIT:
                     $renderer->doc .= '</td></tr></table>' . DOKU_LF;
                     break;
+
+                case 987:
+                    if (method_exists($renderer, 'finishSectionEdit')) {
+                        $renderer->finishSectionEdit($data[1]);
+                    }
+                    break;
             }
             return true;
         }
