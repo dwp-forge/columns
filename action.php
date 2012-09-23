@@ -109,7 +109,11 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
                     break 2;
 
                 case 'plugin':
-                    break ($call[$c][1][0] == 'columns') ? 1 : 2;
+                    if ($call[$c][1][0] == 'columns') {
+                        break;
+                    } else {
+                        break 2;
+                    }
 
                 default:
                     break 2;
