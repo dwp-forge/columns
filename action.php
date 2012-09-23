@@ -12,7 +12,6 @@ if(!defined('DOKU_INC')) die();
 
 if(!defined('DOKU_PLUGIN')) define('DOKU_PLUGIN', DOKU_INC . 'lib/plugins/');
 require_once(DOKU_PLUGIN . 'action.php');
-require_once(DOKU_PLUGIN . 'columns/info.php');
 require_once(DOKU_PLUGIN . 'columns/rewriter.php');
 
 class action_plugin_columns extends DokuWiki_Action_Plugin {
@@ -21,13 +20,6 @@ class action_plugin_columns extends DokuWiki_Action_Plugin {
     var $currentBlock;
     var $currentSectionLevel;
     var $sectionEdit;
-
-    /**
-     * Return some info
-     */
-    function getInfo() {
-        return columns_getInfo('layout parser');
-    }
 
     /**
      * Register callbacks

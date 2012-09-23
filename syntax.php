@@ -13,7 +13,6 @@ if(!defined('DOKU_INC')) die();
 
 if(!defined('DOKU_PLUGIN')) define('DOKU_PLUGIN', DOKU_INC . 'lib/plugins/');
 require_once(DOKU_PLUGIN . 'syntax.php');
-require_once(DOKU_PLUGIN . 'columns/info.php');
 
 class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
 
@@ -48,13 +47,6 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         $this->syntax[DOKU_LEXER_ENTER] = '/' . $enterHandler . '/';
         $this->syntax[DOKU_LEXER_MATCHED] = '/' . $newColumnHandler . '/';
         $this->syntax[DOKU_LEXER_EXIT] = '/' . $exit . '/';
-    }
-
-    /**
-     * Return some info
-     */
-    function getInfo() {
-        return columns_getInfo('syntax & rendering');
     }
 
     /**
