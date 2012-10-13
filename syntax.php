@@ -184,20 +184,10 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
      *
      */
     function _renderTd($attribute) {
-        $class = $this->_getAttribute($attribute, 'class');
-        $textAlign = $this->_getAttribute($attribute, 'text-align');
-        if ($textAlign != '') {
-            if ($class != '') {
-                $class .= ' ';
-            }
-            $class .= $textAlign;
-        }
-        if ($class == '') {
-            $html = '<td';
-        }
-        else {
-            $html = '<td class="' . $class . '"';
-        }
+        $class[] = 'columns-plugin';
+        $class[] = $this->_getAttribute($attribute, 'class');
+        $class[] = $this->_getAttribute($attribute, 'text-align');
+        $html = '<td class="' . implode(' ', array_filter($class)) . '"';
         $style = $this->_getStyle($attribute, 'column-width', 'width');
         $style .= $this->_getStyle($attribute, 'vertical-align');
         if ($style != '') {
