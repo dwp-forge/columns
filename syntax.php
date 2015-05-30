@@ -16,18 +16,18 @@ require_once(DOKU_PLUGIN . 'syntax.php');
 
 class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
 
-    var $mode;
-    var $lexerSyntax;
-    var $syntax;
+    private $mode;
+    private $lexerSyntax;
+    private $syntax;
 
     /**
      * Constructor
      */
-    function syntax_plugin_columns() {
+    public function __construct() {
         $this->mode = substr(get_class($this), 7);
 
-        $columns = $this->_getColumnsTagName();
-        $newColumn = $this->_getNewColumnTagName();
+        $columns = $this->getColumnsTagName();
+        $newColumn = $this->getNewColumnTagName();
         if ($this->getConf('wrapnewcol') == 1) {
             $newColumnLexer = '<' . $newColumn . '(?:>|\s.*?>)';
             $newColumnHandler = '<' . $newColumn . '(.*?)>';
@@ -52,22 +52,22 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      * What kind of syntax are we?
      */
-    function getType() {
+    public function getType() {
         return 'substition';
     }
 
-    function getPType() {
+    public function getPType() {
         return 'block';
     }
 
     /**
      * Where to sort in?
      */
-    function getSort() {
+    public function getSort() {
         return 65;
     }
 
-    function connectTo($mode) {
+    public function connectTo($mode) {
         $this->Lexer->addSpecialPattern($this->lexerSyntax['enter'], $mode, $this->mode);
         $this->Lexer->addSpecialPattern($this->lexerSyntax['newcol'], $mode, $this->mode);
         $this->Lexer->addSpecialPattern($this->lexerSyntax['exit'], $mode, $this->mode);
@@ -76,7 +76,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      * Handle the match
      */
-    function handle($match, $state, $pos, &$handler) {
+    public function handle($match, $state, $pos, &$handler) {
         foreach ($this->syntax as $state => $pattern) {
             if (preg_match($pattern, $match, $data) == 1) {
                 break;
@@ -96,16 +96,16 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      * Create output
      */
-    function render($mode, &$renderer, $data) {
+    public function render($mode, &$renderer, $data) {
         if ($mode == 'xhtml') {
             switch ($data[0]) {
                 case DOKU_LEXER_ENTER:
-                    $renderer->doc .= $this->_renderTable($data[1]) . DOKU_LF;
-                    $renderer->doc .= '<tr>' . $this->_renderTd($data[1]) . DOKU_LF;
+                    $renderer->doc .= $this->renderTable($data[1]) . DOKU_LF;
+                    $renderer->doc .= '<tr>' . $this->renderTd($data[1]) . DOKU_LF;
                     break;
 
                 case DOKU_LEXER_MATCHED:
-                    $renderer->doc .= '</td>' . $this->_renderTd($data[1]) . DOKU_LF;
+                    $renderer->doc .= '</td>' . $this->renderTd($data[1]) . DOKU_LF;
                     break;
 
                 case DOKU_LEXER_EXIT:
@@ -123,21 +123,21 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         else if ($mode == 'odt') {
             switch ($data[0]) {
                 case DOKU_LEXER_ENTER:
-                    $this->_addOdtTableStyle($renderer, $data[1]);
-                    $this->_addOdtColumnStyles($renderer, $data[1]);
-                    $this->_renderOdtTableEnter($renderer, $data[1]);
-                    $this->_renderOdtColumnEnter($renderer, $data[1]);
+                    $this->addOdtTableStyle($renderer, $data[1]);
+                    $this->addOdtColumnStyles($renderer, $data[1]);
+                    $this->renderOdtTableEnter($renderer, $data[1]);
+                    $this->renderOdtColumnEnter($renderer, $data[1]);
                     break;
 
                 case DOKU_LEXER_MATCHED:
-                    $this->_addOdtColumnStyles($renderer, $data[1]);
-                    $this->_renderOdtColumnExit($renderer);
-                    $this->_renderOdtColumnEnter($renderer, $data[1]);
+                    $this->addOdtColumnStyles($renderer, $data[1]);
+                    $this->renderOdtColumnExit($renderer);
+                    $this->renderOdtColumnEnter($renderer, $data[1]);
                     break;
 
                 case DOKU_LEXER_EXIT:
-                    $this->_renderOdtColumnExit($renderer);
-                    $this->_renderOdtTableExit($renderer);
+                    $this->renderOdtColumnExit($renderer);
+                    $this->renderOdtTableExit($renderer);
                     break;
             }
             return true;
@@ -148,7 +148,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      * Returns columns tag
      */
-    function _getColumnsTagName() {
+    private function getColumnsTagName() {
         $tag = $this->getConf('kwcolumns');
         if ($tag == '') {
             $tag = $this->getLang('kwcolumns');
@@ -159,7 +159,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      * Returns new column tag
      */
-    function _getNewColumnTagName() {
+    private function getNewColumnTagName() {
         $tag = $this->getConf('kwnewcol');
         if ($tag == '') {
             $tag = $this->getLang('kwnewcol');
@@ -170,8 +170,8 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      *
      */
-    function _renderTable($attribute) {
-        $width = $this->_getAttribute($attribute, 'table-width');
+    private function renderTable($attribute) {
+        $width = $this->getAttribute($attribute, 'table-width');
         if ($width != '') {
             return '<table class="columns-plugin" style="width:' . $width . '">';
         }
@@ -183,13 +183,13 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      *
      */
-    function _renderTd($attribute) {
+    private function renderTd($attribute) {
         $class[] = 'columns-plugin';
-        $class[] = $this->_getAttribute($attribute, 'class');
-        $class[] = $this->_getAttribute($attribute, 'text-align');
+        $class[] = $this->getAttribute($attribute, 'class');
+        $class[] = $this->getAttribute($attribute, 'text-align');
         $html = '<td class="' . implode(' ', array_filter($class)) . '"';
-        $style = $this->_getStyle($attribute, 'column-width', 'width');
-        $style .= $this->_getStyle($attribute, 'vertical-align');
+        $style = $this->getStyle($attribute, 'column-width', 'width');
+        $style .= $this->getStyle($attribute, 'vertical-align');
         if ($style != '') {
             $html .= ' style="' . $style . '"';
         }
@@ -199,8 +199,8 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      *
      */
-    function _getStyle($attribute, $attributeName, $styleName = '') {
-        $result = $this->_getAttribute($attribute, $attributeName);
+    private function getStyle($attribute, $attributeName, $styleName = '') {
+        $result = $this->getAttribute($attribute, $attributeName);
         if ($result != '') {
             if ($styleName == '') {
                 $styleName = $attributeName;
@@ -213,7 +213,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      *
      */
-    function _getAttribute($attribute, $name) {
+    private function getAttribute($attribute, $name) {
         $result = '';
         if (array_key_exists($name, $attribute)) {
             $result = $attribute[$name];
@@ -224,14 +224,14 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      *
      */
-    function _renderOdtTableEnter(&$renderer, $attribute) {
-        $columns = $this->_getAttribute($attribute, 'columns');
-        $blockId = $this->_getAttribute($attribute, 'block-id');
-        $styleName = $this->_getOdtTableStyleName($blockId);
+    private function renderOdtTableEnter(&$renderer, $attribute) {
+        $columns = $this->getAttribute($attribute, 'columns');
+        $blockId = $this->getAttribute($attribute, 'block-id');
+        $styleName = $this->getOdtTableStyleName($blockId);
 
         $renderer->doc .= '<table:table table:style-name="' . $styleName . '">';
         for ($c = 0; $c < $columns; $c++) {
-            $styleName = $this->_getOdtTableStyleName($blockId, $c + 1);
+            $styleName = $this->getOdtTableStyleName($blockId, $c + 1);
             $renderer->doc .= '<table:table-column table:style-name="' . $styleName . '" />';
         }
         $renderer->doc .= '<table:table-row>';
@@ -240,24 +240,24 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      *
      */
-    function _renderOdtColumnEnter(&$renderer, $attribute) {
-        $blockId = $this->_getAttribute($attribute, 'block-id');
-        $columnId = $this->_getAttribute($attribute, 'column-id');
-        $styleName = $this->_getOdtTableStyleName($blockId, $columnId, 1);
+    private function renderOdtColumnEnter(&$renderer, $attribute) {
+        $blockId = $this->getAttribute($attribute, 'block-id');
+        $columnId = $this->getAttribute($attribute, 'column-id');
+        $styleName = $this->getOdtTableStyleName($blockId, $columnId, 1);
         $renderer->doc .= '<table:table-cell table:style-name="' . $styleName . '" office:value-type="string">';
     }
 
     /**
      *
      */
-    function _renderOdtColumnExit(&$renderer) {
+    private function renderOdtColumnExit(&$renderer) {
         $renderer->doc .= '</table:table-cell>';
     }
 
     /**
      *
      */
-    function _renderOdtTableExit(&$renderer) {
+    private function renderOdtTableExit(&$renderer) {
         $renderer->doc .= '</table:table-row>';
         $renderer->doc .= '</table:table>';
     }
@@ -265,15 +265,15 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      *
      */
-    function _addOdtTableStyle(&$renderer, $attribute) {
-        $styleName = $this->_getOdtTableStyleName($this->_getAttribute($attribute, 'block-id'));
+    private function addOdtTableStyle(&$renderer, $attribute) {
+        $styleName = $this->getOdtTableStyleName($this->getAttribute($attribute, 'block-id'));
         $style = '<style:style style:name="' . $styleName . '" style:family="table">';
         $style .= '<style:table-properties';
-        $width = $this->_getAttribute($attribute, 'table-width');
+        $width = $this->getAttribute($attribute, 'table-width');
 
         if (($width != '') && ($width != '100%')) {
-            $metrics = $this->_getOdtMetrics($renderer->autostyles);
-            $style .= ' style:width="' . $this->_getOdtAbsoluteWidth($metrics, $width) . '"';
+            $metrics = $this->getOdtMetrics($renderer->autostyles);
+            $style .= ' style:width="' . $this->getOdtAbsoluteWidth($metrics, $width) . '"';
         }
         $align = ($width == '100%') ? 'margins' : 'left';
         $style .= ' table:align="' . $align . '"/>';
@@ -285,25 +285,25 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      *
      */
-    function _addOdtColumnStyles(&$renderer, $attribute) {
-        $blockId = $this->_getAttribute($attribute, 'block-id');
-        $columnId = $this->_getAttribute($attribute, 'column-id');
-        $styleName = $this->_getOdtTableStyleName($blockId, $columnId);
+    private function addOdtColumnStyles(&$renderer, $attribute) {
+        $blockId = $this->getAttribute($attribute, 'block-id');
+        $columnId = $this->getAttribute($attribute, 'column-id');
+        $styleName = $this->getOdtTableStyleName($blockId, $columnId);
 
         $style = '<style:style style:name="' . $styleName . '" style:family="table-column">';
         $style .= '<style:table-column-properties';
-        $width = $this->_getAttribute($attribute, 'column-width');
+        $width = $this->getAttribute($attribute, 'column-width');
 
         if ($width != '') {
-            $metrics = $this->_getOdtMetrics($renderer->autostyles);
-            $style .= ' style:column-width="' . $this->_getOdtAbsoluteWidth($metrics, $width) . '"';
+            $metrics = $this->getOdtMetrics($renderer->autostyles);
+            $style .= ' style:column-width="' . $this->getOdtAbsoluteWidth($metrics, $width) . '"';
         }
         $style .= '/>';
         $style .= '</style:style>';
 
         $renderer->autostyles[$styleName] = $style;
 
-        $styleName = $this->_getOdtTableStyleName($blockId, $columnId, 1);
+        $styleName = $this->getOdtTableStyleName($blockId, $columnId, 1);
 
         $style = '<style:style style:name="' . $styleName . '" style:family="table-cell">';
         $style .= '<style:table-cell-properties';
@@ -311,7 +311,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
         $style .= ' fo:padding-top="0cm"';
         $style .= ' fo:padding-bottom="0cm"';
 
-        switch ($this->_getAttribute($attribute, 'class')) {
+        switch ($this->getAttribute($attribute, 'class')) {
             case 'first':
                 $style .= ' fo:padding-left="0cm"';
                 $style .= ' fo:padding-right="0.4cm"';
@@ -325,9 +325,9 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
 
         /* There seems to be no easy way to control horizontal alignment of text within
            the column as fo:text-align aplies to individual paragraphs. */
-        //TODO: $this->_getAttribute($attribute, 'text-align');
+        //TODO: $this->getAttribute($attribute, 'text-align');
 
-        $align = $this->_getAttribute($attribute, 'vertical-align');
+        $align = $this->getAttribute($attribute, 'vertical-align');
         if ($align != '') {
             $style .= ' style:vertical-align="' . $align . '"';
         }
@@ -344,7 +344,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      *
      */
-    function _getOdtMetrics($autoStyle) {
+    private function getOdtMetrics($autoStyle) {
         $result = array();
         if (array_key_exists('pm1', $autoStyle)) {
             $style = $autoStyle['pm1'];
@@ -391,7 +391,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      *
      */
-    function _getOdtTableStyleName($blockId, $columnId = 0, $cell = 0) {
+    private function getOdtTableStyleName($blockId, $columnId = 0, $cell = 0) {
         $result = 'ColumnsBlock' . $blockId;
         if ($columnId != 0) {
             if ($columnId <= 26) {
@@ -411,7 +411,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      * Convert relative units to absolute
      */
-    function _getOdtAbsoluteWidth($metrics, $width) {
+    private function getOdtAbsoluteWidth($metrics, $width) {
         if (preg_match('/([\d\.]+)(.+)/', $width, $match) == 1) {
             switch ($match[2]) {
                 case '%':
