@@ -76,7 +76,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      * Handle the match
      */
-    public function handle($match, $state, $pos, &$handler) {
+    public function handle($match, $state, $pos, Doku_Handler $handler) {
         foreach ($this->syntax as $state => $pattern) {
             if (preg_match($pattern, $match, $data) == 1) {
                 break;
@@ -96,7 +96,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      * Create output
      */
-    public function render($mode, &$renderer, $data) {
+    public function render($mode, Doku_Renderer $renderer, $data) {
         if ($mode == 'xhtml') {
             switch ($data[0]) {
                 case DOKU_LEXER_ENTER:
