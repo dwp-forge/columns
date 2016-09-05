@@ -99,7 +99,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
      * Create output
      */
     public function render($mode, Doku_Renderer $renderer, $data) {
-        $columnsRenderer = $this->getRenderer($mode);
+        $columnsRenderer = $this->getRenderer($mode, $renderer);
 
         if ($columnsRenderer != NULL) {
             $columnsRenderer->render($data[0], $renderer, $data[1]);
@@ -111,7 +111,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     /**
      *
      */
-    private function getRenderer($mode) {
+    private function getRenderer($mode, Doku_Renderer $renderer) {
         switch ($mode) {
             case 'xhtml':
                 if ($this->xhtmlRenderer == NULL) {
