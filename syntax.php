@@ -19,7 +19,8 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
     private $mode;
     private $lexerSyntax;
     private $syntax;
-    private $render_columns = NULL;
+    private $xhtmlRenderer;
+    private $odtRenderer;
 
     /**
      * Constructor
@@ -98,39 +99,39 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
      * Create output
      */
     public function render($mode, Doku_Renderer $renderer, $data) {
-        if ($this->render_columns === NULL) {
-            if ($mode == 'xhtml') {
-                $this->render_columns = new xhtml_render_columns();
-            }
-            else if ($mode == 'odt') {
-                if (!method_exists ($renderer, 'getODTPropertiesFromElement')) {
-                    $this->render_columns = new odt_render_columns_v1();
-                } else {
-                    $this->render_columns = new odt_render_columns_v2();
-                }
-            }
-        }
-        if ($this->render_columns !== NULL) {
-            switch ($data[0]) {
-                case DOKU_LEXER_ENTER:
-                    $this->render_columns->render_enter($renderer, $data[1]);
-                    break;
+        $columnsRenderer = $this->getRenderer($mode);
 
-                case DOKU_LEXER_MATCHED:
-                    $this->render_columns->render_matched($renderer, $data[1]);
-                    break;
-
-                case DOKU_LEXER_EXIT:
-                    $this->render_columns->render_exit($renderer, $data[1]);
-                    break;
-
-                case 987:
-                    $this->render_columns->render_987($renderer, $data[1]);
-                    break;
-            }
+        if ($columnsRenderer != NULL) {
+            $columnsRenderer->render($data[0], $renderer, $data[1]);
             return true;
         }
         return false;
+    }
+
+    /**
+     *
+     */
+    private function getRenderer($mode) {
+        switch ($mode) {
+            case 'xhtml':
+                if ($this->xhtmlRenderer == NULL) {
+                    $this->xhtmlRenderer = new columns_renderer_xhtml();
+                }
+                return $this->xhtmlRenderer;
+
+            case 'odt':
+                if ($this->odtRenderer == NULL) {
+                    if (method_exists($renderer, 'getODTPropertiesFromElement')) {
+                        $this->odtRenderer = new columns_renderer_odt_v2();
+                    }
+                    else {
+                        $this->odtRenderer = new columns_renderer_odt_v1();
+                    }
+                }
+                return $this->odtRenderer;
+        }
+
+        return NULL;
     }
 
     /**
@@ -159,16 +160,34 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
 /**
  * Base class for columns rendering.
  */
-abstract class render_columns {
-    abstract public function render_enter(Doku_Renderer $renderer, $attribute);
-    abstract public function render_matched(Doku_Renderer $renderer, $attribute);
-    abstract public function render_exit(Doku_Renderer $renderer, $attribute);
-    abstract public function render_987(Doku_Renderer $renderer, $attribute);
+abstract class columns_renderer {
+    /**
+     *
+     */
+    public function render($state, Doku_Renderer $renderer, $attribute) {
+        switch ($state) {
+            case DOKU_LEXER_ENTER:
+                $this->render_enter($renderer, $attribute);
+                break;
+
+            case DOKU_LEXER_MATCHED:
+                $this->render_matched($renderer, $attribute);
+                break;
+
+            case DOKU_LEXER_EXIT:
+                $this->render_exit($renderer, $attribute);
+                break;
+        }
+    }
+
+    abstract protected function render_enter(Doku_Renderer $renderer, $attribute);
+    abstract protected function render_matched(Doku_Renderer $renderer, $attribute);
+    abstract protected function render_exit(Doku_Renderer $renderer, $attribute);
 
     /**
      *
      */
-    public function getAttribute($attribute, $name) {
+    protected function getAttribute($attribute, $name) {
         $result = '';
         if (array_key_exists($name, $attribute)) {
             $result = $attribute[$name];
@@ -179,7 +198,7 @@ abstract class render_columns {
     /**
      *
      */
-    public function getStyle($attribute, $attributeName, $styleName = '') {
+    protected function getStyle($attribute, $attributeName, $styleName = '') {
         $result = $this->getAttribute($attribute, $attributeName);
         if ($result != '') {
             if ($styleName == '') {
@@ -192,27 +211,41 @@ abstract class render_columns {
 }
 
 /**
- * Class xhtml_render_columns
+ * Class columns_renderer_xhtml
  * @author LarsDW223
  */
-class xhtml_render_columns extends render_columns {
-    public function render_enter(Doku_Renderer $renderer, $attribute) {
+class columns_renderer_xhtml extends columns_renderer {
+    /**
+     *
+     */
+    public function render($state, Doku_Renderer $renderer, $attribute) {
+        parent::render($state, $renderer, $attribute);
+
+        if ($state == 987 && method_exists($renderer, 'finishSectionEdit')) {
+            $renderer->finishSectionEdit($attribute);
+        }
+    }
+
+    /**
+     *
+     */
+    protected function render_enter(Doku_Renderer $renderer, $attribute) {
         $renderer->doc .= $this->renderTable($attribute) . DOKU_LF;
         $renderer->doc .= '<tr>' . $this->renderTd($attribute) . DOKU_LF;
     }
 
-    public function render_matched(Doku_Renderer $renderer, $attribute) {
+    /**
+     *
+     */
+    protected function render_matched(Doku_Renderer $renderer, $attribute) {
         $renderer->doc .= '</td>' . $this->renderTd($attribute) . DOKU_LF;
     }
 
-    public function render_exit(Doku_Renderer $renderer, $attribute) {
+    /**
+     *
+     */
+    protected function render_exit(Doku_Renderer $renderer, $attribute) {
         $renderer->doc .= '</td></tr></table>' . DOKU_LF;
-    }
-
-    public function render_987(Doku_Renderer $renderer, $attribute) {
-        if (method_exists($renderer, 'finishSectionEdit')) {
-            $renderer->finishSectionEdit($attribute);
-        }
     }
 
     /**
@@ -246,36 +279,41 @@ class xhtml_render_columns extends render_columns {
 }
 
 /**
- * Class odt_render_columns_v1
+ * Class columns_renderer_odt_v1
  */
-class odt_render_columns_v1 extends render_columns {
-    public function render_enter(Doku_Renderer $renderer, $attribute) {
+class columns_renderer_odt_v1 extends columns_renderer {
+    /**
+     *
+     */
+    protected function render_enter(Doku_Renderer $renderer, $attribute) {
         $this->addOdtTableStyle($renderer, $attribute);
         $this->addOdtColumnStyles($renderer, $attribute);
         $this->renderOdtTableEnter($renderer, $attribute);
         $this->renderOdtColumnEnter($renderer, $attribute);
     }
 
-    public function render_matched(Doku_Renderer $renderer, $attribute) {
+    /**
+     *
+     */
+    protected function render_matched(Doku_Renderer $renderer, $attribute) {
         $this->addOdtColumnStyles($renderer, $attribute);
         $this->renderOdtColumnExit($renderer);
         $this->renderOdtColumnEnter($renderer, $attribute);
     }
 
-    public function render_exit(Doku_Renderer $renderer, $attribute) {
+    /**
+     *
+     */
+    protected function render_exit(Doku_Renderer $renderer, $attribute) {
         $this->renderOdtColumnExit($renderer);
         $this->renderOdtTableExit($renderer);
-    }
-
-    public function render_987(Doku_Renderer $renderer, $attribute) {
-        // Nothing to do here for ODT...
     }
 
     /**
      *
      */
     private function addOdtTableStyle(Doku_Renderer $renderer, $attribute) {
-        $styleName = $this->getOdtTableStyleName(syntax_plugin_columns::getAttribute($attribute, 'block-id'));
+        $styleName = $this->getOdtTableStyleName($this->getAttribute($attribute, 'block-id'));
         $style = '<style:style style:name="' . $styleName . '" style:family="table">';
         $style .= '<style:table-properties';
         $width = $this->getAttribute($attribute, 'table-width');
@@ -336,7 +374,7 @@ class odt_render_columns_v1 extends render_columns {
            the column as fo:text-align aplies to individual paragraphs. */
         //TODO: $this->getAttribute($attribute, 'text-align');
 
-        $align = syntax_plugin_columns::getAttribute($attribute, 'vertical-align');
+        $align = $this->getAttribute($attribute, 'vertical-align');
         if ($align != '') {
             $style .= ' style:vertical-align="' . $align . '"';
         }
@@ -479,27 +517,32 @@ class odt_render_columns_v1 extends render_columns {
 }
 
 /**
- * Class odt_render_columns_v2
+ * Class columns_renderer_odt_v2
  * @author LarsDW223
  */
-class odt_render_columns_v2 extends render_columns {
-    public function render_enter(Doku_Renderer $renderer, $attribute) {
+class columns_renderer_odt_v2 extends columns_renderer {
+    /**
+     *
+     */
+    protected function render_enter(Doku_Renderer $renderer, $attribute) {
         $this->renderOdtTableEnter($renderer, $attribute);
         $this->renderOdtColumnEnter($renderer, $attribute);
     }
 
-    public function render_matched(Doku_Renderer $renderer, $attribute) {
+    /**
+     *
+     */
+    protected function render_matched(Doku_Renderer $renderer, $attribute) {
         $this->renderOdtColumnExit($renderer);
         $this->renderOdtColumnEnter($renderer, $attribute);
     }
 
-    public function render_exit(Doku_Renderer $renderer, $attribute) {
+    /**
+     *
+     */
+    protected function render_exit(Doku_Renderer $renderer, $attribute) {
         $this->renderOdtColumnExit($renderer);
         $this->renderOdtTableExit($renderer);
-    }
-
-    public function render_987(Doku_Renderer $renderer, $attribute) {
-        // Nothing to do here for ODT...
     }
 
     /**
