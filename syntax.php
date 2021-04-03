@@ -90,7 +90,7 @@ class syntax_plugin_columns extends DokuWiki_Syntax_Plugin {
                 return array($state, preg_split('/\s+/', $data[1], -1, PREG_SPLIT_NO_EMPTY));
 
             case DOKU_LEXER_EXIT:
-                return array($state);
+                return array($state, array());
         }
         return false;
     }
