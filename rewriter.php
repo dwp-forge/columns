@@ -80,7 +80,7 @@ class instruction_rewriter {
 
 class instruction_rewriter_correction {
 
-    private $index;
+    protected $index;
 
     /**
      * Constructor
